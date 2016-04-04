@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Pattern | Matched - Some things with mypy: sum and product types</title>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="../css/bootstrap-blog.css"> 
+     <link rel="stylesheet" type="text/css" href="../css/syntax.css" /> 
+     <link rel="stylesheet" type="text/css" href="../lib/styles/*.css" /> 
+     <script src="lib/highlight.pack.js"></script>
+  </head>
+
+  <body>
+
+    <div class="blog-masthead">
+      <div class="container">
+	<nav class="blog-nav">
+          <a class="blog-nav-item" href="../">Home</a>
+          <a class="blog-nav-item" href="../about.html">About</a>
+          <a class="blog-nav-item" href="../contact.html">Contact</a>
+          <a class="blog-nav-item" href="../archive.html">Archive</a>
+	</nav>
+      </div>
+    </div>
+
+    <div class="container">
+
+      <div class="blog-header">
+	<h1 class="blog-title">Pattern | Matched</h1>
+	<p class="lead blog-description">
+        <!--The blog of Dr. Hakyll-->
+	</p>
+      </div>
+
+      <div class="row">
+	<div class="col-sm-8 blog-main">
+	  <div class="blog-post">
+  <h2 class="blog-post-title">
+    Some things with mypy: sum and product types
+  </h2>
+  <p class="blog-post-meta">
+    Posted on 2016-03-03
+    
+      by Michael Panciera
+    
+  </p>
+  <p><a href="https://www.python.org/dev/peps/pep-0484/">A recent pep</a> solidifies type annotations in python 2 and 3. These type annotations are compatible with current versions of python. They can be ignored altogether, used however you wish in your own program, or used to typecheck your code with <a href="github.com/python/mypyp">mypy</a>. This post will discuss the last option. Later we’ll see how python’s strong introspective powers can be used to leverage these types in conjunction with mypy.</p>
+<p><code>mypy</code> enables static typing in python. The features include defacto case-classes (using named tuples) and Union types. These are known more generally as “product types” and “sum types” respectively. A product type is similar to a class in Java. It has pre-defined members (private or public) of other types. In a sense it is a “product” of these other types. In mypy, one can declare a product type using classes, or more simply using <code>NamedTuple.</code> For example, let’s create a product type for points in a 3D plane.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">Point3D <span class="op">=</span> NamedTuple(<span class="st">&quot;Point3D&quot;</span>, [(<span class="st">&quot;x&quot;</span>, <span class="bu">float</span>), (<span class="st">&quot;y&quot;</span>, <span class="bu">float</span>), (<span class="st">&quot;z&quot;</span>, <span class="bu">float</span>)])</code></pre></div>
+<p>If we wanted to use a simple tuple instead, we could declare that so:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">Point3DTuple <span class="op">=</span> Tuple[<span class="bu">float</span>, <span class="bu">float</span>, <span class="bu">float</span>]</code></pre></div>
+<p>Let’s look at what our named tuple can, and more importantly can’t, do within mypy’s type world. All the displayed errors are part of mypy’s output, which provides the line of the error as well as an explanation. Keep in mind these are all erorrs caught before the program, or even any tests, are run. These errors can also be integrated with editors or IDEs to provde real-time feedback.</p>
+<p>It can be created and accessed just like <code>collections.namedtuple.</code></p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">point <span class="op">=</span> Point3D(<span class="dv">0</span>, <span class="fl">1.0</span>, <span class="fl">3.98</span>)
+x <span class="op">=</span> point.x
+y <span class="op">=</span> point[<span class="dv">1</span>] <span class="co"># this typechecks, it probably shouldn't</span></code></pre></div>
+<p>mypy knows how long the tuple is, and what types its members are!</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">r <span class="op">=</span> point[<span class="dv">99</span>]
+foo.py:<span class="dv">10</span>: error: Tuple index out of <span class="bu">range</span></code></pre></div>
+<p>mypy enforces the safety of common operators. This avoids meaningless comparisons, for example, which are uncaught by python’s runtime:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="op">&gt;&gt;&gt;</span> <span class="st">&quot;foo&quot;</span> <span class="op">&gt;</span> sys.maxint
+ <span class="va">True</span> <span class="co"># sure, why not?</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">point.x <span class="op">+</span> <span class="st">&quot;Eureka&quot;</span>
+foo.py:<span class="dv">10</span>: error: Unsupported operand types <span class="cf">for</span> <span class="op">+</span> (<span class="st">&quot;float&quot;</span> <span class="op">and</span> <span class="st">&quot;str&quot;</span>)
+
+x <span class="op">=</span> point.x <span class="co"># mypy infers the type after assignment</span>
+
+x <span class="op">&gt;</span> <span class="st">&quot;Eureka&quot;</span>
+foo.py:<span class="dv">10</span>: error: Unsupported operand types <span class="cf">for</span> <span class="op">&gt;</span> (<span class="st">&quot;float&quot;</span> <span class="op">and</span> <span class="st">&quot;str&quot;</span>)</code></pre></div>
+<p>mypy limits attribute access:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">sneaky <span class="op">=</span> point.gecko
+foo.py:<span class="dv">13</span>: error: <span class="st">&quot;Point3D&quot;</span> has no attribute <span class="st">&quot;gecko&quot;</span></code></pre></div>
+<p>mypy supports generics. A generic can be a lot of things; A <code>list</code>, an <code>Iterable</code>, or something equivalent to scala/java 8’s <code>Option</code> type. If a generic is a collection, all elements of the collection must be of the same type. mypy comes equipped with a number of generic types; take for example <code>List</code>, which is an alias for the built-in <code>list</code>.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">ListOfInts <span class="op">=</span> List[<span class="bu">int</span>]</code></pre></div>
+<p>You can also create types by subclassing <code>Generic</code>.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">class</span> Option(Generic[T]):
+    <span class="kw">def</span> getOrElse(t: T) <span class="op">-&gt;</span> T:
+       . . . </code></pre></div>
+<p>It’s possible to use multiple type variables within a generic:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">E <span class="op">=</span> TypeVar(<span class="st">&quot;E&quot;</span>)
+V <span class="op">=</span> TypeVar(<span class="st">&quot;V&quot;</span>)
+<span class="kw">class</span> Either(Generic[E,V]):
+    . . . . </code></pre></div>
+<p>Let’s use <code>List</code> and <code>3DPoint</code> to create a more complex product type: <code>Robot Legs</code>.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">RobotLegs <span class="op">=</span> NamedTuple(<span class="st">&quot;RobotLegs&quot;</span>, [(<span class="st">&quot;leftLeg&quot;</span>, List[Point3D]), (<span class="st">&quot;rightLeg&quot;</span>, List[Point3D]), (<span class="st">&quot;color&quot;</span>, <span class="bu">str</span>)])</code></pre></div>
+<p>Note that we’ve defined the field <code>color</code> as simply a string, allowing us to create robot legs with nonsense colors. It’s also possible to create robot legs with negative integers for coordinates! We only want pastel colors, and robots which exist in the cartesian plane.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">blueRobot <span class="op">=</span> RobotLegs(points, points, <span class="st">&quot;fizbizzle&quot;</span>)</code></pre></div>
+<p>Of course, we could check for this condition in the functions that use the color:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> getColor(legs: RobotLegs) <span class="op">-&gt;</span> <span class="bu">int</span>:
+    <span class="cf">if</span> legs.color <span class="op">not</span> <span class="op">in</span> [<span class="st">&quot;skyblue&quot;</span>, <span class="st">&quot;red&quot;</span>, <span class="st">&quot;white&quot;</span>]:
+        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="st">&quot;Invalid color </span><span class="sc">%s</span><span class="st">&quot;</span> <span class="op">%</span> legs.color)
+    <span class="cf">else</span>:
+         . . . . </code></pre></div>
+<p>That’s a hassle, and it’s easy to forget to do these checks in every function. Instead, let’s nip this in the bud. We really want to make it is easy on ourselves and be <em>really really sure</em> that we only have to validate our input once. We can do all the validation–cleaning up data from I/O, verifying it matches a certain shape, creating errors etc.–when we construct the instances of our types. That way all functions which accept those types are relieved from the obligation of checking themselves.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">SkyBlue <span class="op">=</span> NamedTuple(<span class="st">&quot;SkyBlue&quot;</span>, [])
+PastelRed <span class="op">=</span> NamedTuple(<span class="st">&quot;PastelRed&quot;</span>, [])
+White <span class="op">=</span> NamedTuple(<span class="st">&quot;White&quot;</span>, [])
+
+Color <span class="op">=</span> Union[Blue, PastelRed, White]
+
+RobotLegs <span class="op">=</span> NamedTuple(<span class="st">&quot;RobotLegs&quot;</span>, [(<span class="st">&quot;leftLeg&quot;</span>, List[Point3D]), (<span class="st">&quot;rightLeg&quot;</span>, List[Point3D]), (<span class="st">&quot;color&quot;</span>, Color)])</code></pre></div>
+<p>Now we can be assured that our color is one of the primaries (always a good starting pint for giant robots), so we don’t have to worry about validating our data again!</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> getColor(legs: RobotLegs) <span class="op">-&gt;</span> <span class="bu">int</span>:
+    <span class="cf">if</span> legs.color <span class="op">==</span> SkyBlue():  <span class="cf">return</span> <span class="bn">0x87CEFA</span> 
+    <span class="cf">if</span> <span class="bu">isinstance</span>(legs.color, SkyBlue): <span class="cf">return</span>  <span class="bn">0x87CEFA</span> <span class="co"># this is equivalent</span></code></pre></div>
+<p>We can even safely use a statically typed dictionary which never raise a KeyErorr:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">colors <span class="op">=</span> { SkyBlue() : <span class="bn">0x87CEFA</span> } <span class="co"># type: Dict[Color,int]</span>
+. . . . </code></pre></div>
+<p>Now, let’s make sure the 3D coordinates are valid. For this, we’ll need something more powerful than a simple <code>NamedTuple</code>. We’ll want to refuse all non-positive input. But note that a traditional python class won’t be safe because python classes are mutable by default! It doesn’t do much good to make a safe <code>3DPoint</code> if one can simply overwrite its attributes. But we can create more complex immutable objects in python:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">class</span> Coordinate(<span class="bu">object</span>):
+    <span class="kw">def</span> <span class="fu">__new__</span>(<span class="va">self</span>, x: <span class="bu">float</span>, y: <span class="bu">float</span>, z: <span class="bu">float</span>) <span class="op">-&gt;</span> Point3D:
+        <span class="cf">assert</span> x <span class="op">&gt;=</span> <span class="dv">0</span> <span class="op">and</span> y <span class="op">&gt;=</span> <span class="dv">0</span> <span class="op">and</span> z <span class="op">&gt;=</span> <span class="dv">0</span>
+        <span class="cf">return</span> Point3D(x, y, z)</code></pre></div>
+<p>In fact it’s possible to use this technique to <em>guarantee</em> that our function will only ever get valid input. It’s only possible to construct the sum type of <code>RobotLegs</code> through the union type of <code>Color</code>; <code>Color</code> is by definition one of <code>Blue</code>, <code>Red</code>. . . and points In languages with the concept of private constructors, it’s possible to <em>guarantee</em> that a RobotLegs cannot be created an invalid state–and therefore that <code>getColor</code> can never be passed invalid data–by making the <code>RobotLegs</code> constructor private. Unfortunately, we can only document the <code>make3DCoordinates</code> function as the point of entry for our API–we can’t exclude the constructor as private.</p>
+<p>Note that the assurance offered by static typing is significantly stronger than the contract offered by ducked typing. If we simply accepted an object with <code>leftLeg</code> <code>rightLeg</code> and <code>color</code> as a RobotLeg, we’d have no guarantees that these fields were valid, or even that they were the expected type!</p>
+<p><code>Color</code> is a very simple Union type, analogous to the “Enums” of other languages (including python 3), while providing additional safety. Bution union types are more powerful; it’s possible to create a union type out of product types, and model arbitrary complex systems this way. You can think of these types as representing the “set of all possible inputs and outputs” and functions accepting these types as representing the “cobminators” or “all the things I can ever do with my inputs”. Together, these form a sort of “algebra” that represents your domain. In the domain of giant robots:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">Rifle <span class="op">=</span> NamedTuple(<span class="st">'Rifle'</span>, [(<span class="st">'ammo'</span> , <span class="bu">int</span>), (<span class="st">'model'</span> , <span class="bu">str</span>)])
+Knife <span class="op">=</span> NamedTuple(<span class="st">'Knife'</span>, [(<span class="st">'shape'</span> , List[Coordinate]), (<span class="st">'thatsNotAKnife'</span>, <span class="bu">bool</span>)])
+
+weapon <span class="op">=</span> Union[Rifle, Knife]
+
+RobotLegs <span class="op">=</span> NamedTuple(<span class="st">&quot;RobotArms&quot;</span>, [(<span class="st">&quot;leftArm&quot;</span>, List[Coordinate]), (<span class="st">&quot;rightArm&quot;</span>, List[Coordinate]), (<span class="st">&quot;color&quot;</span>, Color)])
+
+GiantRobot <span class="op">=</span> NamedTuple(<span class="st">'GiantRobot'</span>, [(<span class="st">'weapon'</span>, Weapon), (<span class="st">'legs'</span> , RobotLegs), (<span class="st">'arms'</span>, RobotArms)])
+
+<span class="kw">def</span> canFight(robot: GiantRobot) <span class="op">-&gt;</span> <span class="bu">bool</span>:
+    <span class="cf">if</span> <span class="bu">isinstance</span>(robot.weapon, Rifle):
+        <span class="cf">return</span> robot.weapon.ammo <span class="op">&gt;</span> <span class="dv">0</span>
+    <span class="cf">else</span>: 
+        <span class="cf">return</span> <span class="op">not</span> robot.weapon.thatsNotAKnife <span class="co"># this is a knife</span></code></pre></div>
+<p>The <code>isinstance</code> check tells mypy that <code>robot.weapon</code> is specifically a rifle, and therefore has an <code>ammo</code> field of type <code>int</code>. Without that check, we get a nifty error from mypy–and find out before testing, running, or deploying:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">foo.py: note: In function <span class="st">&quot;canFight&quot;</span>:
+foo.py:<span class="dv">35</span>: error: Some element of union has no attribute <span class="st">&quot;ammo&quot;</span></code></pre></div>
+<p>Great! we’ve created an API that’s clear, self-documenting, and compartively safe. We’ve provided some limited guarantees of correctness; and our domain is well-defined, which will help us reason about our past and future code moving forward. mypy is a growing project; it’s still in an early stage and being actively developed. It’s become an official part of they <a href="github.com/python">python</a> flock as the definitive optional typechecker; it’s got the <a href="https://github.com/python/mypy/issues/1276#issuecomment-192981427">backing</a> and <a href="https://github.com/python/mypy/pull/1277">involvement</a> of <a href="https://en.wikipedia.org/wiki/Guido_van_Rossum">python’s creator</a>.</p>
+<p>Although mypy is still in active development, it can be a profitable tool right now. It’s not a compiler, and it never touches your code, so it can be used without much concern for bugs. It takes some extra time to annotate python with types–I’ve demonstrated some of the strengths of its type inference, but it’s necessary to annotate some things like lambda expressions, for example. It’s well worth the effort to document and verify your code in one way or another–mypy is another excellent tool for this purpose.</p>
+</div>
+
+	</div>
+
+	<div class="col-sm-3 col-sm-offset-1 blog-sidebar">
+	  <div class="sidebar-module sidebar-module-inset">
+	    <h4>About</h4>
+	    <p>(typesafe) functional programming </p>
+	  </div>
+	  <div class="sidebar-module">
+	    <h4>Archives</h4>
+	    <ol class="list-unstyled">
+	      <li><a href="#">June 2015</a></li>
+	    </ol>
+	  </div>
+	  <div class="sidebar-module">
+	    <h4>Elsewhere</h4>
+	    <ol class="list-unstyled">
+	      <li>
+		<a href="#">GitHub</a>
+	      </li>
+	      <li>
+		<a href="#">Twitter</a>
+	      </li>
+	      <li>
+		<a href="#">Facebook</a>
+	      </li>
+	    </ol>
+	  </div>
+	  <div class="sidebar-module">
+	    <a href="../atom.xml">Atom</a> - <a href="../rss.xml">RSS</a>
+	  </div>
+	</div>
+
+      </div>
+
+    </div>
+
+    <footer class="blog-footer">
+      <p>
+	Site proudly generated by
+	<a href="http://jaspervdj.be/hakyll">Hakyll</a>
+      </p>
+    </footer>
+
+  </body>
+
+</html>

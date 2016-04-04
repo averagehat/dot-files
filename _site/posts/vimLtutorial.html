@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Pattern | Matched - Vim Script 101</title>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="../css/bootstrap-blog.css"> 
+     <link rel="stylesheet" type="text/css" href="../css/syntax.css" /> 
+     <link rel="stylesheet" type="text/css" href="../lib/styles/*.css" /> 
+     <script src="lib/highlight.pack.js"></script>
+  </head>
+
+  <body>
+
+    <div class="blog-masthead">
+      <div class="container">
+	<nav class="blog-nav">
+          <a class="blog-nav-item" href="../">Home</a>
+          <a class="blog-nav-item" href="../about.html">About</a>
+          <a class="blog-nav-item" href="../contact.html">Contact</a>
+          <a class="blog-nav-item" href="../archive.html">Archive</a>
+	</nav>
+      </div>
+    </div>
+
+    <div class="container">
+
+      <div class="blog-header">
+	<h1 class="blog-title">Pattern | Matched</h1>
+	<p class="lead blog-description">
+        <!--The blog of Dr. Hakyll-->
+	</p>
+      </div>
+
+      <div class="row">
+	<div class="col-sm-8 blog-main">
+	  <div class="blog-post">
+  <h2 class="blog-post-title">
+    Vim Script 101
+  </h2>
+  <p class="blog-post-meta">
+    Posted on 2015-02-02
+    
+      by Mike Panciera
+    
+  </p>
+  <p>I’m currently working on <a href="https://github.com/averagehat/phonim-jython">a plugin for vim</a>. Along the way I’ve discovered a lot of intersting and useful productivity tricks.</p>
+<h3 id="defining-functions">Defining functions</h3>
+<pre class="vim"><code>fun! Foo()
+&quot; function body
+endfun
+
+function Foo()
+&quot; function body
+endfunction</code></pre>
+<p>Create functions within the command window by putting each statement on a new line. i.e.</p>
+<pre class="vim"><code>:fun! Foo() [&lt;CR&gt;]
+:  second line
+: . . . . . </code></pre>
+<p>Execute them from the commandline window:</p>
+<pre class="vim"><code>:call Foo()</code></pre>
+<p>Variables have several possible scopes: <code>l</code> (local to function), <code>s</code> (local to individual scripts/files), <code>g</code> (global), <code>a</code> (a function parameter).</p>
+<p><code>v</code> is a global like <code>g</code>, but has been predefined by vim. These cannot be defined by the user.</p>
+<p><code>b</code> (local to current buffer), <code>w</code> (local to the current winow) and <code>t</code> (local to current tab) are less often used.</p>
+<p>View defined variables:</p>
+<pre class="vim"><code>:let g:  &quot;or v:, b:, etcl</code></pre>
+<p>By the way, we can use <code>&quot;</code> for comments</p>
+<p>View register contents:</p>
+<pre class="vim"><code>:reg</code></pre>
+<p>Variables are defined using let, e.g.:</p>
+<pre class="vim"><code> let l:bar = &quot;red&quot;</code></pre>
+<p>Variables defined or accessed within a function are by default in the local scope. Prepending with <code>g:</code> allows access to global variables.</p>
+<p>Arrays are much like python lists. They are type-agnostic and can be sliced.</p>
+<pre class="vim"><code>:let l:a = [1, 2, 'foo', 'bar']
+:echo a[2:-1]` &quot;prints ['foo', 'bar']</code></pre>
+<p>Strings can also be sliced withe same syntax.</p>
+<p>String concatenation is php style:</p>
+<pre class="vim"><code>let g:pair = 'eight' . 'eight'</code></pre>
+<p>Directly access the command line:</p>
+<pre class="vim"><code>:!echo -e &quot;bash\nis\nfun&quot; | cat &gt; bar.txt </code></pre>
+<p>Read files into the buffer:</p>
+<pre class="vim"><code>:r bar.txt</code></pre>
+<p>Produces:</p>
+<pre><code>bash
+is
+fun</code></pre>
+<p>Under your cursor.</p>
+<p>Read command outputs into the buffer:</p>
+<pre class="vim"><code>:r !curl -s icanhazip.com</code></pre>
+<p>If your distribution of vim is compiled with python included (and it usually is) you can also access a python interpreter during your editing session.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">:py <span class="bu">print</span> <span class="st">&quot;ni!&quot;</span></code></pre></div>
+<p>You can access vim from the internal python interpreter.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">:py <span class="im">import</span> vim
+:py vim.current.<span class="bu">buffer</span>[<span class="dv">0</span>] <span class="op">=</span> <span class="st">'Just answer the five (three!) questions'</span></code></pre></div>
+<p>You can go crazy with it if you like . . .</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">:py <span class="im">import</span> requests, lxml.etree
+:root <span class="op">=</span> lxml.etree.HTML(requests.get(<span class="st">'https://twitter.com/montypython'</span>).text)
+:redir @i<span class="op">|</span> exe <span class="st">':silent py for t in  root.xpath(&quot;//p[contains(@class, </span><span class="ch">\&quot;</span><span class="st">ProfileTweet-text</span><span class="ch">\&quot;</span><span class="st">)]/text()&quot;): print t.encode(&quot;utf8&quot;)'</span> <span class="op">|</span> redir END <span class="op">|</span> $put i</code></pre></div>
+<p>Here, <code>:redir</code> redirects output of the commands between <code>:redir</code> and <code>:redir END</code> (which would usually be printed in the command window) to some register. Vim has 26+ register (all alphabetical letters and additional reserved registers). <code>@i</code> accesses the value at register <code>i</code>, telling vim to pipe output there. <code>|</code> stands in place of <code>&lt;CR&gt;</code> to separate commands. <code>exe</code> executes the given command as if it were in the command. We can use it when we need to make a command out of concatenating strings. In this case, it lets us wrap the python code in ’’ so that python does not try to interpret the next <code>|</code>. <code>silent</code> tells vim not to echo the result of the command in the command window. <code>redir END</code> will populate our register <code>i</code> – it won’t get updated until the redirect is finished. Finally, we execute <code>put i</code>, which inserts the contents of register <code>i</code> after the cursor’s current line. The <code>$</code> (which generally indecates “last”) tells put to instead append to the last line of the buffer.</p>
+<p>There are some useful global variables</p>
+<pre class="vim"><code>v:statusmsg    &quot;usually holds the last item shown in the command window      
+v:warningmsg   e.g. W10: Warning: Changing a readonly file
+v:errmsg       e.g. E488: Trailing characters: put v:errmsg</code></pre>
+<p>Useful Motions (normal mode)</p>
+<pre class="vim"><code>command    goes to
+`f&lt;char&gt;` next instance of &lt;char&gt;
+`)`       end of setnece
+`%`       matching parens/brace
+`$`       end of line
+`G`       end of file
+`}`       next paragraph</code></pre>
+<p>Additionally, we have <code>visual</code> mode. A quick preview of that:</p>
+<pre class="vim"><code>&lt;C-v&gt;  &quot;To select columns. Any change propagates to all columns.
+:vs [filename] &quot;split vertical window
+:split [filename] &quot;split horizontally</code></pre>
+<p><code>&lt;C-w&gt;</code> Is the window command suffix, so <code>&lt;C-w&gt; h</code> moves to the left widnow, <code>&lt;C-w&gt; l</code> to the right, <code>&lt;C-w&gt; k</code> moves to the upper window and <code>&lt;C-w&gt; j</code> moves to the lower one. I have the following mapping which forces this to work straight out of insert mode:</p>
+<pre class="vim"><code>:inoremap &lt;C-w&gt; &lt;Esc&gt; &lt;C-w&gt;</code></pre>
+<p><code>&lt;Esc&gt;</code> exits to nromal mode. So does <code>&lt;C-[&gt;</code>; we can map the tab key to do it as well:</p>
+<pre class="vim"><code>:imap &lt;tab&gt; &lt;Esc&gt;</code></pre>
+<p>So what can we do with all this? Well, we have lots of useful variables, lots of registers, and marks, and even [ communication protocol for controlling external processes] (http://vimdoc.sourceforge.net/htmldoc/netbeans.html). My next post will be about the project that most of this study has been devoted to. For now, I’ll go over a few of my personal settings and one trick that is a bit obscure but extremely powerful.</p>
+<pre class="vim"><code>:noremap &lt;C-d&gt; :call search('def\s\s*(' . expand('&lt;cword&gt;')) &lt;CR&gt;</code></pre>
+<p>The <code>search</code> function takes a string (remember that <code>.</code> performs string concatenation), searches the buffer for the regular expression, and moves the cursor to the the line of the found string. <code>search</code> returns the line of the found match, or <code>0</code> if no match was found (vim counts its buffer line from <code>1</code>). <code>&lt;cword&gt;</code> is an “Ex special character” (try <code>:h cmdline-special</code>). The <code>expand</code> function returns the special meaning of <code>&lt;cword&gt;</code>, which happens to be the current word under the cursor. So if the word under my cursor is “print_lines”, search will be called on <code>def\s+print_line(</code>. So this obscure little function will take you to the function definiton of whatever function you’re currently hovering over. IF it’s in the file. But what if it’s not? Let’s try a function.</p>
+<pre class="vim"><code>fun! DefSearch()
+  let l:regex = 'def\s\s*(' . expand('&lt;cword&gt;')
+  if search(regex) == 0   &quot; search failed
+ silent 'grep -E &quot;'  . regex . '&quot; *.py'
+  endif
+endfun</code></pre>
+<p>VimL’s functions execute their code as if from the command-line (in vim, as if you prepended them with <code>:</code>). So <code>silent</code> <code>executes</code> the following command without echoing in the command window. It then execute’s vim’s built-in grep (which is a wrapper around bash’s grep). grep’s <code>E</code> allows you to use quote-wrapped regular expressions; -r forces a recursive search, if you like it. <code>*.py</code> will match any python files. Let’s map it! Food()</p>
+<pre class="vim"><code>:noremap &lt;C-d&gt; :call DefSearch() &lt;CR&gt;</code></pre>
+<p>But it’s only useful if we’re editing or reading a python file . . . we probably don’t want to use it otherwise. So in the <code>.vimrc</code> file, we add:</p>
+<pre class="vim"><code>au BufREadPost *.py :noremap &lt;C-d&gt; :call DefSearch() &lt;CR&gt;</code></pre>
+<p>Testing all this can be a bit of a drag, but as we are editing a vim script (or our .vimrc file) we can immmediately run it (and gain access to its globally-declared variables and functions) by calling <code>:source</code>. We can take advantage of anther “cmd-line-special” <code>%</code>, which in the command-line has the value of the current buffer name.</p>
+<pre class="vim"><code>:source %</code></pre>
+<p>Okay, one last trick. This one is real nifty. Info on it is in vim’s extensive in-house documentation–just try <code>:h g@</code>. This trick allows you to capture user motions and reference them within a function. We do this by setting an ‘operatorfunc’ option. The result is a custom operator. Given a function Foo:</p>
+<pre class="vim"><code>:nmap &lt;silent&gt; &lt;F4&gt; :set opfunc=Echo&lt;CR&gt;g@
+:vmap &lt;silent&gt; &lt;F4&gt; :&lt;C-U&gt;call Echo(visualmode(), 1)&lt;CR&gt;</code></pre>
+<p>Note: <code>:vmap</code> is the equivalent of <code>:nmap</code> for visual mode. The function defition:</p>
+<pre class="vim"><code>&quot; uses [/] marks along with visual mode to yank a custom selection of text.
+fun! Echo(type, ...)
+  &quot;backticks=' (goto mark), have to avoid out-quoting string
+  &quot;clear the @q register for use in this function.
+  &quot;@q is the reserved phonim register.
+  let @q=&quot;&quot;
+  &quot; see :h g@ for more info and how to save and restore a register, which
+  &quot; would allow us to use 'q' only temporarily and then restore it 
+  if a:0  &quot; Invoked from Visual mode, use '&lt; and '&gt; marks.
+ silent exe &quot;normal! `&lt;&quot; . a:type . '`&gt;&quot;qy'
+  elseif a:type == 'line'
+ silent exe 'normal! `[V`]&quot;qy'
+  elseif a:type == 'block' &quot; column ('block') selection. 
+ silent exe 'normal! `[\&lt;C-V&gt;`]&quot;qy'
+  &quot;v -&gt; visual mode but stay in-line
+  else &quot; Stay in-line
+ silent exe 'normal! `[v`]&quot;qy'  
+  endif
+  echo @q
+endfun</code></pre>
+<p>This function echos into the command-window any text that the user selects. It saves the user’s selection in the <code>q</code> register (could be any letter). It is possible to store and restore this register so as not to lose its original contents. Now <code>:normal</code> executes normal-mode commands, and will use any mappings that we defined by <code>nmap</code>. <code>:normal!</code> overrides this use of mapping. The <code>opfunc</code> works by setting <code>[</code> and <code>]</code> marks to the beginning and end of the user motiton (i.e. to the next whitespace if it is <code>W</code> or the next like if it is <code>j</code>). The <code>Echo</code> function simply yanks the text between these two marks and stores them in the <code>q</code> register. We can then do whatever we like with the text, in this case echo it. The if statements gaurantee that the selection will work the same in visual and normal mode (<code>v</code> is for inline visual selection; <code>V</code> is for column or “block” selection).</p>
+<p>In my next post I’ll talk about an interesting application of this last technique–and VimL in general, and the reasoning behind all this research.</p>
+</div>
+
+	</div>
+
+	<div class="col-sm-3 col-sm-offset-1 blog-sidebar">
+	  <div class="sidebar-module sidebar-module-inset">
+	    <h4>About</h4>
+	    <p>(typesafe) functional programming </p>
+	  </div>
+	  <div class="sidebar-module">
+	    <h4>Archives</h4>
+	    <ol class="list-unstyled">
+	      <li><a href="#">June 2015</a></li>
+	    </ol>
+	  </div>
+	  <div class="sidebar-module">
+	    <h4>Elsewhere</h4>
+	    <ol class="list-unstyled">
+	      <li>
+		<a href="#">GitHub</a>
+	      </li>
+	      <li>
+		<a href="#">Twitter</a>
+	      </li>
+	      <li>
+		<a href="#">Facebook</a>
+	      </li>
+	    </ol>
+	  </div>
+	  <div class="sidebar-module">
+	    <a href="../atom.xml">Atom</a> - <a href="../rss.xml">RSS</a>
+	  </div>
+	</div>
+
+      </div>
+
+    </div>
+
+    <footer class="blog-footer">
+      <p>
+	Site proudly generated by
+	<a href="http://jaspervdj.be/hakyll">Hakyll</a>
+      </p>
+    </footer>
+
+  </body>
+
+</html>

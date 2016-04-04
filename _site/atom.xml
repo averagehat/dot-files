@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>Pattern | Matched</title>
+    <link href="/atom.xml" rel="self" />
+    <link href="" />
+    <id>/atom.xml</id>
+    <author>
+        <name>Michael Panciera</name>
+        <email>michael.panciera.work@gmail.com</email>
+    </author>
+    <updated>2016-03-03T00:00:00Z</updated>
+    <entry>
+    <title>Some things with mypy: sum and product types</title>
+    <link href="/posts/types.html" />
+    <id>/posts/types.html</id>
+    <published>2016-03-03T00:00:00Z</published>
+    <updated>2016-03-03T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<div class="blog-post">
+  <h2 class="blog-post-title">
+    Some things with mypy: sum and product types
+  </h2>
+  <p class="blog-post-meta">
+    Posted on 2016-03-03
+    
+      by Michael Panciera
+    
+  </p>
+  <p><a href="https://www.python.org/dev/peps/pep-0484/">A recent pep</a> solidifies type annotations in python 2 and 3. These type annotations are compatible with current versions of python. They can be ignored altogether, used however you wish in your own program, or used to typecheck your code with <a href="github.com/python/mypyp">mypy</a>. This post will discuss the last option. Later we’ll see how python’s strong introspective powers can be used to leverage these types in conjunction with mypy.</p>
+<p><code>mypy</code> enables static typing in python. The features include defacto case-classes (using named tuples) and Union types. These are known more generally as “product types” and “sum types” respectively. A product type is similar to a class in Java. It has pre-defined members (private or public) of other types. In a sense it is a “product” of these other types. In mypy, one can declare a product type using classes, or more simply using <code>NamedTuple.</code> For example, let’s create a product type for points in a 3D plane.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">Point3D <span class="op">=</span> NamedTuple(<span class="st">&quot;Point3D&quot;</span>, [(<span class="st">&quot;x&quot;</span>, <span class="bu">float</span>), (<span class="st">&quot;y&quot;</span>, <span class="bu">float</span>), (<span class="st">&quot;z&quot;</span>, <span class="bu">float</span>)])</code></pre></div>
+<p>If we wanted to use a simple tuple instead, we could declare that so:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">Point3DTuple <span class="op">=</span> Tuple[<span class="bu">float</span>, <span class="bu">float</span>, <span class="bu">float</span>]</code></pre></div>
+<p>Let’s look at what our named tuple can, and more importantly can’t, do within mypy’s type world. All the displayed errors are part of mypy’s output, which provides the line of the error as well as an explanation. Keep in mind these are all erorrs caught before the program, or even any tests, are run. These errors can also be integrated with editors or IDEs to provde real-time feedback.</p>
+<p>It can be created and accessed just like <code>collections.namedtuple.</code></p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">point <span class="op">=</span> Point3D(<span class="dv">0</span>, <span class="fl">1.0</span>, <span class="fl">3.98</span>)
+x <span class="op">=</span> point.x
+y <span class="op">=</span> point[<span class="dv">1</span>] <span class="co"># this typechecks, it probably shouldn&#39;t</span></code></pre></div>
+<p>mypy knows how long the tuple is, and what types its members are!</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">r <span class="op">=</span> point[<span class="dv">99</span>]
+foo.py:<span class="dv">10</span>: error: Tuple index out of <span class="bu">range</span></code></pre></div>
+<p>mypy enforces the safety of common operators. This avoids meaningless comparisons, for example, which are uncaught by python’s runtime:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="op">&gt;&gt;&gt;</span> <span class="st">&quot;foo&quot;</span> <span class="op">&gt;</span> sys.maxint
+ <span class="va">True</span> <span class="co"># sure, why not?</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">point.x <span class="op">+</span> <span class="st">&quot;Eureka&quot;</span>
+foo.py:<span class="dv">10</span>: error: Unsupported operand types <span class="cf">for</span> <span class="op">+</span> (<span class="st">&quot;float&quot;</span> <span class="op">and</span> <span class="st">&quot;str&quot;</span>)
+
+x <span class="op">=</span> point.x <span class="co"># mypy infers the type after assignment</span>
+
+x <span class="op">&gt;</span> <span class="st">&quot;Eureka&quot;</span>
+foo.py:<span class="dv">10</span>: error: Unsupported operand types <span class="cf">for</span> <span class="op">&gt;</span> (<span class="st">&quot;float&quot;</span> <span class="op">and</span> <span class="st">&quot;str&quot;</span>)</code></pre></div>
+<p>mypy limits attribute access:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">sneaky <span class="op">=</span> point.gecko
+foo.py:<span class="dv">13</span>: error: <span class="st">&quot;Point3D&quot;</span> has no attribute <span class="st">&quot;gecko&quot;</span></code></pre></div>
+<p>mypy supports generics. A generic can be a lot of things; A <code>list</code>, an <code>Iterable</code>, or something equivalent to scala/java 8’s <code>Option</code> type. If a generic is a collection, all elements of the collection must be of the same type. mypy comes equipped with a number of generic types; take for example <code>List</code>, which is an alias for the built-in <code>list</code>.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">ListOfInts <span class="op">=</span> List[<span class="bu">int</span>]</code></pre></div>
+<p>You can also create types by subclassing <code>Generic</code>.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">class</span> Option(Generic[T]):
+    <span class="kw">def</span> getOrElse(t: T) <span class="op">-&gt;</span> T:
+       . . . </code></pre></div>
+<p>It’s possible to use multiple type variables within a generic:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">E <span class="op">=</span> TypeVar(<span class="st">&quot;E&quot;</span>)
+V <span class="op">=</span> TypeVar(<span class="st">&quot;V&quot;</span>)
+<span class="kw">class</span> Either(Generic[E,V]):
+    . . . . </code></pre></div>
+<p>Let’s use <code>List</code> and <code>3DPoint</code> to create a more complex product type: <code>Robot Legs</code>.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">RobotLegs <span class="op">=</span> NamedTuple(<span class="st">&quot;RobotLegs&quot;</span>, [(<span class="st">&quot;leftLeg&quot;</span>, List[Point3D]), (<span class="st">&quot;rightLeg&quot;</span>, List[Point3D]), (<span class="st">&quot;color&quot;</span>, <span class="bu">str</span>)])</code></pre></div>
+<p>Note that we’ve defined the field <code>color</code> as simply a string, allowing us to create robot legs with nonsense colors. It’s also possible to create robot legs with negative integers for coordinates! We only want pastel colors, and robots which exist in the cartesian plane.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">blueRobot <span class="op">=</span> RobotLegs(points, points, <span class="st">&quot;fizbizzle&quot;</span>)</code></pre></div>
+<p>Of course, we could check for this condition in the functions that use the color:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> getColor(legs: RobotLegs) <span class="op">-&gt;</span> <span class="bu">int</span>:
+    <span class="cf">if</span> legs.color <span class="op">not</span> <span class="op">in</span> [<span class="st">&quot;skyblue&quot;</span>, <span class="st">&quot;red&quot;</span>, <span class="st">&quot;white&quot;</span>]:
+        <span class="cf">raise</span> <span class="pp">ValueError</span>(<span class="st">&quot;Invalid color </span><span class="sc">%s</span><span class="st">&quot;</span> <span class="op">%</span> legs.color)
+    <span class="cf">else</span>:
+         . . . . </code></pre></div>
+<p>That’s a hassle, and it’s easy to forget to do these checks in every function. Instead, let’s nip this in the bud. We really want to make it is easy on ourselves and be <em>really really sure</em> that we only have to validate our input once. We can do all the validation–cleaning up data from I/O, verifying it matches a certain shape, creating errors etc.–when we construct the instances of our types. That way all functions which accept those types are relieved from the obligation of checking themselves.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">SkyBlue <span class="op">=</span> NamedTuple(<span class="st">&quot;SkyBlue&quot;</span>, [])
+PastelRed <span class="op">=</span> NamedTuple(<span class="st">&quot;PastelRed&quot;</span>, [])
+White <span class="op">=</span> NamedTuple(<span class="st">&quot;White&quot;</span>, [])
+
+Color <span class="op">=</span> Union[Blue, PastelRed, White]
+
+RobotLegs <span class="op">=</span> NamedTuple(<span class="st">&quot;RobotLegs&quot;</span>, [(<span class="st">&quot;leftLeg&quot;</span>, List[Point3D]), (<span class="st">&quot;rightLeg&quot;</span>, List[Point3D]), (<span class="st">&quot;color&quot;</span>, Color)])</code></pre></div>
+<p>Now we can be assured that our color is one of the primaries (always a good starting pint for giant robots), so we don’t have to worry about validating our data again!</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> getColor(legs: RobotLegs) <span class="op">-&gt;</span> <span class="bu">int</span>:
+    <span class="cf">if</span> legs.color <span class="op">==</span> SkyBlue():  <span class="cf">return</span> <span class="bn">0x87CEFA</span> 
+    <span class="cf">if</span> <span class="bu">isinstance</span>(legs.color, SkyBlue): <span class="cf">return</span>  <span class="bn">0x87CEFA</span> <span class="co"># this is equivalent</span></code></pre></div>
+<p>We can even safely use a statically typed dictionary which never raise a KeyErorr:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">colors <span class="op">=</span> { SkyBlue() : <span class="bn">0x87CEFA</span> } <span class="co"># type: Dict[Color,int]</span>
+. . . . </code></pre></div>
+<p>Now, let’s make sure the 3D coordinates are valid. For this, we’ll need something more powerful than a simple <code>NamedTuple</code>. We’ll want to refuse all non-positive input. But note that a traditional python class won’t be safe because python classes are mutable by default! It doesn’t do much good to make a safe <code>3DPoint</code> if one can simply overwrite its attributes. But we can create more complex immutable objects in python:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">class</span> Coordinate(<span class="bu">object</span>):
+    <span class="kw">def</span> <span class="fu">__new__</span>(<span class="va">self</span>, x: <span class="bu">float</span>, y: <span class="bu">float</span>, z: <span class="bu">float</span>) <span class="op">-&gt;</span> Point3D:
+        <span class="cf">assert</span> x <span class="op">&gt;=</span> <span class="dv">0</span> <span class="op">and</span> y <span class="op">&gt;=</span> <span class="dv">0</span> <span class="op">and</span> z <span class="op">&gt;=</span> <span class="dv">0</span>
+        <span class="cf">return</span> Point3D(x, y, z)</code></pre></div>
+<p>In fact it’s possible to use this technique to <em>guarantee</em> that our function will only ever get valid input. It’s only possible to construct the sum type of <code>RobotLegs</code> through the union type of <code>Color</code>; <code>Color</code> is by definition one of <code>Blue</code>, <code>Red</code>. . . and points In languages with the concept of private constructors, it’s possible to <em>guarantee</em> that a RobotLegs cannot be created an invalid state–and therefore that <code>getColor</code> can never be passed invalid data–by making the <code>RobotLegs</code> constructor private. Unfortunately, we can only document the <code>make3DCoordinates</code> function as the point of entry for our API–we can’t exclude the constructor as private.</p>
+<p>Note that the assurance offered by static typing is significantly stronger than the contract offered by ducked typing. If we simply accepted an object with <code>leftLeg</code> <code>rightLeg</code> and <code>color</code> as a RobotLeg, we’d have no guarantees that these fields were valid, or even that they were the expected type!</p>
+<p><code>Color</code> is a very simple Union type, analogous to the “Enums” of other languages (including python 3), while providing additional safety. Bution union types are more powerful; it’s possible to create a union type out of product types, and model arbitrary complex systems this way. You can think of these types as representing the “set of all possible inputs and outputs” and functions accepting these types as representing the “cobminators” or “all the things I can ever do with my inputs”. Together, these form a sort of “algebra” that represents your domain. In the domain of giant robots:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">Rifle <span class="op">=</span> NamedTuple(<span class="st">&#39;Rifle&#39;</span>, [(<span class="st">&#39;ammo&#39;</span> , <span class="bu">int</span>), (<span class="st">&#39;model&#39;</span> , <span class="bu">str</span>)])
+Knife <span class="op">=</span> NamedTuple(<span class="st">&#39;Knife&#39;</span>, [(<span class="st">&#39;shape&#39;</span> , List[Coordinate]), (<span class="st">&#39;thatsNotAKnife&#39;</span>, <span class="bu">bool</span>)])
+
+weapon <span class="op">=</span> Union[Rifle, Knife]
+
+RobotLegs <span class="op">=</span> NamedTuple(<span class="st">&quot;RobotArms&quot;</span>, [(<span class="st">&quot;leftArm&quot;</span>, List[Coordinate]), (<span class="st">&quot;rightArm&quot;</span>, List[Coordinate]), (<span class="st">&quot;color&quot;</span>, Color)])
+
+GiantRobot <span class="op">=</span> NamedTuple(<span class="st">&#39;GiantRobot&#39;</span>, [(<span class="st">&#39;weapon&#39;</span>, Weapon), (<span class="st">&#39;legs&#39;</span> , RobotLegs), (<span class="st">&#39;arms&#39;</span>, RobotArms)])
+
+<span class="kw">def</span> canFight(robot: GiantRobot) <span class="op">-&gt;</span> <span class="bu">bool</span>:
+    <span class="cf">if</span> <span class="bu">isinstance</span>(robot.weapon, Rifle):
+        <span class="cf">return</span> robot.weapon.ammo <span class="op">&gt;</span> <span class="dv">0</span>
+    <span class="cf">else</span>: 
+        <span class="cf">return</span> <span class="op">not</span> robot.weapon.thatsNotAKnife <span class="co"># this is a knife</span></code></pre></div>
+<p>The <code>isinstance</code> check tells mypy that <code>robot.weapon</code> is specifically a rifle, and therefore has an <code>ammo</code> field of type <code>int</code>. Without that check, we get a nifty error from mypy–and find out before testing, running, or deploying:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">foo.py: note: In function <span class="st">&quot;canFight&quot;</span>:
+foo.py:<span class="dv">35</span>: error: Some element of union has no attribute <span class="st">&quot;ammo&quot;</span></code></pre></div>
+<p>Great! we’ve created an API that’s clear, self-documenting, and compartively safe. We’ve provided some limited guarantees of correctness; and our domain is well-defined, which will help us reason about our past and future code moving forward. mypy is a growing project; it’s still in an early stage and being actively developed. It’s become an official part of they <a href="github.com/python">python</a> flock as the definitive optional typechecker; it’s got the <a href="https://github.com/python/mypy/issues/1276#issuecomment-192981427">backing</a> and <a href="https://github.com/python/mypy/pull/1277">involvement</a> of <a href="https://en.wikipedia.org/wiki/Guido_van_Rossum">python’s creator</a>.</p>
+<p>Although mypy is still in active development, it can be a profitable tool right now. It’s not a compiler, and it never touches your code, so it can be used without much concern for bugs. It takes some extra time to annotate python with types–I’ve demonstrated some of the strengths of its type inference, but it’s necessary to annotate some things like lambda expressions, for example. It’s well worth the effort to document and verify your code in one way or another–mypy is another excellent tool for this purpose.</p>
+</div>
+]]></summary>
+</entry>
+<entry>
+    <title>Functional Programming for Bioinformatics (with list functions)</title>
+    <link href="/posts/biofp.html" />
+    <id>/posts/biofp.html</id>
+    <published>2015-08-08T00:00:00Z</published>
+    <updated>2015-08-08T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<div class="blog-post">
+  <h2 class="blog-post-title">
+    Functional Programming for Bioinformatics (with list functions)
+  </h2>
+  <p class="blog-post-meta">
+    Posted on 2015-08-08
+    
+      by Michael Panciera
+    
+  </p>
+  <p>Functional programming principles can be productively applied even in small cases. The predictability and compositional capacity of small functions allows for modular, extensible code. First-order functions can be used in a variety of generic higher-order functions or “combinators”. In the future, we will look at how static typing combined with immutability can make this code much safer as an additional benefit.</p>
+<p>Let’s use calculating <a href="https://en.wikipedia.org/wiki/GC-content">GC-content</a> as an example.</p>
+<p>Where <code>seq</code> is some DNA sequence–just a string of characters composed soley of items in the set <code>{'A', 'C', 'G', 'T'}</code></p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> gc(seq):
+    <span class="co">&#39;&#39;&#39;(G+C)/(A+T+G+C) * 100&#39;&#39;&#39;</span>
+    <span class="cf">return</span> (seq.count(<span class="st">&#39;G&#39;</span>) <span class="op">+</span> seq.count(<span class="st">&#39;C&#39;</span>)) <span class="op">/</span> <span class="bu">float</span>( <span class="bu">len</span>(seq) )
+<span class="bu">print</span>(gc(<span class="st">&quot;ACGTCCA&quot;</span>))
+
+
+<span class="op">&gt;&gt;&gt;</span> <span class="fl">0.571428571429</span></code></pre></div>
+<p>But reall, we want to model GC-content as a fraction, so at any given time we know the size of the sequence. Python has a fraction class, but it doesn’t allow us to represent the state <code>0/0</code>, which would be our startin state.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="im">from</span> fractions <span class="im">import</span> Fraction
+<span class="kw">class</span> Ratio(Fraction):
+    <span class="co">&#39;&#39;&#39; new is for immutable classes.&#39;&#39;&#39;</span>
+    <span class="kw">def</span> <span class="fu">__new__</span>(cls, num, denom):
+        <span class="co">&#39;&#39;&#39;cls is like self really &#39;&#39;&#39;</span>
+        <span class="cf">if</span> denom <span class="op">==</span><span class="dv">0</span> <span class="op">and</span> num <span class="op">==</span> <span class="dv">0</span>:
+            <span class="va">self</span> <span class="op">=</span> <span class="bu">super</span>(Fraction, cls).<span class="fu">__new__</span>(cls)
+        <span class="cf">else</span>:
+            <span class="va">self</span> <span class="op">=</span> <span class="bu">super</span>(Fraction, cls).<span class="fu">__new__</span>(cls)
+        <span class="va">self</span>.<span class="fu">__str__</span> <span class="op">=</span> Ratio.<span class="fu">__str__</span>
+        <span class="va">self</span>._numerator, <span class="va">self</span>._denominator <span class="op">=</span> num, denom
+        <span class="cf">return</span> <span class="va">self</span>
+    <span class="kw">def</span> <span class="fu">__float__</span>(<span class="va">self</span>):
+        <span class="cf">if</span> <span class="va">self</span>._denominator <span class="op">==</span> <span class="dv">0</span>:
+            <span class="cf">return</span> <span class="fl">0.0</span>
+        <span class="cf">else</span>:
+            <span class="cf">return</span> <span class="bu">super</span>(Fraction, <span class="va">self</span>).<span class="fu">__float__</span>()
+        
+    <span class="kw">def</span> <span class="fu">__str__</span>(<span class="va">self</span>):
+        <span class="cf">return</span> <span class="st">&quot;</span><span class="sc">{0}</span><span class="st">/</span><span class="sc">{1}</span><span class="st">&quot;</span>.<span class="bu">format</span>(<span class="va">self</span>._numerator, <span class="va">self</span>._denominator)</code></pre></div>
+<p>Now we can update our function:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> gc(seq):
+    <span class="co">&#39;&#39;&#39;(G+C)/(A+T+G+C) * 100&#39;&#39;&#39;</span>
+    <span class="cf">return</span> Ratio(seq.count(<span class="st">&#39;G&#39;</span>) <span class="op">+</span> seq.count(<span class="st">&#39;C&#39;</span>),  <span class="bu">len</span>(seq))
+<span class="bu">print</span>(gc(<span class="st">&quot;ACGTCCA&quot;</span>))
+
+<span class="op">&gt;&gt;&gt;</span>  <span class="dv">4</span><span class="op">/</span><span class="dv">7</span></code></pre></div>
+<p>’This is all well and good, but what if we want to know the GC-content at a certain place in the read?</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">seq <span class="op">=</span> <span class="st">&#39;AGCTTAGGCCTTTAAAACCGGGGCCCCCGGAAGCGACTT&#39;</span>
+<span class="bu">print</span> gc(seq[:<span class="dv">10</span>]) 
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">6</span><span class="op">/</span><span class="dv">10</span></code></pre></div>
+<p>That works, but will get tiresome and inefficient…</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">gc(seq[<span class="dv">0</span>]), gc(seq[:<span class="dv">10</span>]), gc(seq[<span class="op">-</span><span class="dv">1</span>]) 
+
+<span class="op">&gt;&gt;&gt;</span>    (Fraction(<span class="dv">0</span>, <span class="dv">1</span>), Fraction(<span class="dv">6</span>, <span class="dv">10</span>), Fraction(<span class="dv">0</span>, <span class="dv">1</span>))</code></pre></div>
+<p>What if we want to create a histogram of the gc-content at each position in the read?</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">N <span class="op">=</span> <span class="bu">len</span>(seq)
+<span class="kw">def</span> gc_hist_(seq):
+    <span class="cf">return</span> [gc_counter(seq[:i]) <span class="cf">for</span> i  <span class="op">in</span> <span class="bu">xrange</span>(<span class="dv">1</span>, N)]</code></pre></div>
+<p>we have to re-calculate the GC-ratio each time! In terms of runtime, this is equivalent to:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="bu">sum</span>(i <span class="cf">for</span> i <span class="op">in</span> <span class="bu">xrange</span>(N) ) 
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">741</span></code></pre></div>
+<p>Well, this method is O(N^2) (about (N^2)/2, where N=length of sequence). So the runtime is quadratic. We can fix this by writing a new function specifially for constructing a list of GC-content.</p>
+<p>Instead, let’s try solving this problem with higher-order functions, and see where that gets us.</p>
+<p>Functional programming works well when we compose small functions together. Let’s create the smallest unit we can out of this problem:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> content(ratio, nt):
+    val <span class="op">=</span> <span class="dv">1</span> <span class="cf">if</span> nt <span class="op">in</span> <span class="st">&#39;GC&#39;</span> <span class="cf">else</span> <span class="dv">0</span>
+    <span class="cf">return</span> Ratio(ratio.numerator <span class="op">+</span> val, ratio.denominator<span class="dv">+1</span>)</code></pre></div>
+<p>Next, let’s solve our problem of creating a rolling GC-content for a histogram using a higher-order function and <code>content</code>. A higher-order function is just a function which accepts another function as one of its arguments. This feature isn’t available in all programming languages, but it’s available in python. The higher-order function we’ll use is <code>accumulate</code>.</p>
+<p>In haskell, accumulate is known as <code>scanl</code>, and it’s corrolary is <code>foldl</code>. <code>accumulate</code> is similar to <code>reduce</code> in python, except it keeps track of every result, rather than throwing them away and only keeping the final result.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> accumulate(iterable, func, start<span class="op">=</span><span class="va">None</span>):
+    <span class="co">&#39;&#39;&#39;re-implementation of accumulate that allows you to specify a start value</span>
+<span class="co">    like with reduce.&#39;&#39;&#39;</span>
+    it <span class="op">=</span> <span class="bu">iter</span>(iterable)
+    <span class="cf">if</span> start <span class="op">is</span> <span class="va">None</span>:
+        total <span class="op">=</span> <span class="bu">next</span>(it)
+        <span class="cf">yield</span> total
+    <span class="cf">else</span>:
+        total <span class="op">=</span> start
+    <span class="co">#could also skip yielding total</span>
+    <span class="cf">for</span> element <span class="op">in</span> it:
+        total <span class="op">=</span> func(total, element)
+        <span class="cf">yield</span> total</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="im">import</span> operator
+<span class="bu">print</span> <span class="bu">list</span>(accumulate([<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>], operator.mul)) <span class="co"># --&gt; 1 2 6 24 120</span>
+<span class="op">&gt;&gt;&gt;</span>    [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">6</span>, <span class="dv">24</span>, <span class="dv">120</span>]
+
+<span class="bu">print</span> <span class="bu">list</span>(accumulate(<span class="st">&quot;ACGCCGT&quot;</span>, content, Ratio(<span class="dv">0</span>, <span class="dv">0</span>)))
+<span class="im">from</span> functools <span class="im">import</span> partial
+func_gc_hist <span class="op">=</span> partial(accumulate, func<span class="op">=</span>content, start<span class="op">=</span>Ratio(<span class="dv">0</span>,<span class="dv">0</span>))
+
+<span class="op">&gt;&gt;&gt;</span>    [Fraction(<span class="dv">0</span>, <span class="dv">1</span>), Fraction(<span class="dv">1</span>, <span class="dv">2</span>), Fraction(<span class="dv">2</span>, <span class="dv">3</span>), Fraction(<span class="dv">3</span>, <span class="dv">4</span>), Fraction(<span class="dv">4</span>, <span class="dv">5</span>), Fraction(<span class="dv">5</span>, <span class="dv">6</span>), Fraction(<span class="dv">5</span>, <span class="dv">7</span>)]</code></pre></div>
+<p>Now we have our histogram! Let’s look more closely at how this works using <code>reduce</code> as an example. Using our function <code>content</code> with <code>reduce</code> will give us the total GC-ratio for a given sequence. <code>reduce</code> emulates recursion by computing a new value for each element in the list and passing it onto the next call with the element as a paramter. Let’s look at a simple example of summing a list:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> _add2(acc, elem):
+    <span class="cf">return</span> elem <span class="op">+</span> acc
+
+<span class="bu">print</span> <span class="bu">reduce</span>(_add2, [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>]) 
+
+<span class="op">&gt;&gt;&gt;</span>    <span class="dv">15</span></code></pre></div>
+<p>Let’s break this down, step by step. Here, each line represents an iteration of reduce. . . .</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># under the hood, this might look like:</span>
+[<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>], <span class="dv">0</span>
+<span class="op">-&gt;</span> [<span class="dv">1</span>, <span class="dv">2</span>], <span class="dv">3</span>
+<span class="op">-&gt;</span> [<span class="dv">1</span>],   <span class="dv">5</span>
+<span class="op">&gt;&gt;&gt;</span><span class="dv">6</span></code></pre></div>
+<p>In a sense <code>reduce</code> is “substituting” parts of the list for there sum, similar to how one might simplify an algabreic equation. We can see this pattern in accumulate’s output:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="bu">print</span> <span class="bu">list</span>(accumulate([<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>], _add2)) 
+
+<span class="op">&gt;&gt;&gt;</span>  [<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">6</span>, <span class="dv">10</span>, <span class="dv">15</span>]</code></pre></div>
+<p>Another simple example, reversing a list. list reversal has a straightforward recursive solution:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> _reverse(l):
+    <span class="cf">if</span> <span class="bu">len</span>(l) <span class="op">==</span> <span class="dv">0</span>: <span class="cf">return</span> []
+    <span class="cf">return</span> [l[<span class="op">-</span><span class="dv">1</span>]] <span class="op">+</span> _reverse(l[:<span class="op">-</span><span class="dv">1</span>])
+
+<span class="bu">print</span>(_reverse([<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>])) 
+
+<span class="op">&gt;&gt;&gt;</span>    [<span class="dv">4</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">1</span>]</code></pre></div>
+<p>But it can be written much more simply using <code>reduce</code>, which handles the details of the recursive call.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> _reverse(acc, elem):
+    <span class="cf">return</span> [elem] <span class="op">+</span> acc
+<span class="bu">reduce</span>(_reverse, [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>], []) 
+
+<span class="op">&gt;&gt;&gt;</span>    [<span class="dv">4</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">1</span>]</code></pre></div>
+<p>Again, let’s break it down:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">[<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>], []
+<span class="op">-&gt;</span> [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>], [<span class="dv">4</span>]
+<span class="op">-&gt;</span> [<span class="dv">1</span>, <span class="dv">2</span>],    [<span class="dv">4</span>, <span class="dv">3</span>]
+<span class="op">-&gt;</span> [<span class="dv">1</span>],       [<span class="dv">4</span>, <span class="dv">3</span>, <span class="dv">2</span>]
+<span class="op">&gt;&gt;&gt;</span>[<span class="dv">4</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">1</span>]</code></pre></div>
+<p>notice that at any point during the traversal, the accumulated value is correct for the traversed part of the list. Using this model of folding an accumulating paramter over a sequence, we can model GC-content as a “rolling ratio” over a given sequence of nucleotides. At any point during the traversal, The ratio will be correct, and the result of “reducing” the sequence with this model will give us our total GC-content. The following method is not the most efficient nor the simplest (it requires building a “Ratio” subclass), but it closely (and flexibly) models the mathematical formula that defines GC-content in the first place. ‘’’</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">seq <span class="op">=</span> <span class="st">&#39;AGCTTAGGCCTTTAAAACCGGGGCCCCCGGAAGCGACTT&#39;</span>
+<span class="bu">print</span> <span class="bu">reduce</span>(content, seq, Ratio(<span class="dv">0</span>,<span class="dv">0</span>))
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">23</span><span class="op">/</span><span class="dv">39</span></code></pre></div>
+<p>That’s all reasonable, and it’s nice to see GC-content representated as a ratio. But is it practical? Well, it will work, but there is a much more efficient way. Array-wise computations like this–which will become quite large if we get big reads (or god forbid) a whole contig/genome. Additionally, we may want to scale to viewing multiple reads at once, ie, as a matrix.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="im">from</span> random <span class="im">import</span> choice
+N <span class="op">=</span> <span class="dv">1000000</span>
+alpha <span class="op">=</span> <span class="bu">list</span>(<span class="st">&#39;AGCT&#39;</span>)
+seq <span class="op">=</span> <span class="st">&#39;&#39;</span>.join( choice(alpha) <span class="cf">for</span> _ <span class="op">in</span> <span class="bu">xrange</span>(N) )
+<span class="im">from</span> fn.iters <span class="im">import</span> repeatfunc
+seq <span class="op">=</span> <span class="st">&#39;&#39;</span>.join(repeatfunc(partial(choice, alpha), N))
+<span class="op">%</span>timeit functional <span class="op">=</span> func_gc_hist(seq)
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">1000000</span> loops, best of <span class="dv">3</span>: <span class="dv">663</span> ns per loop</code></pre></div>
+<p>Quite slow. Let’s see how the efficient <code>numpy</code> library can achieve much faster runtimes, and how we can use these same functional principals–recursion, reduction, and accumulation–to get more leverage (and cleaner code) out of numpy.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="im">import</span> numpy <span class="im">as</span> np
+np.array([<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>]).<span class="bu">sum</span>()
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">15</span></code></pre></div>
+<p><code>np.sum</code> is actually a specific (read: partial application) of np.reduce! <a href="https://github.com/numpy/numpy/blob/a9c810dd1d8fc1e3c6d0f0ca6310f41795545ec9/numpy/core/_methods.py">source</a></p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">npseq <span class="op">=</span> np.array(<span class="bu">list</span>(seq))
+gccon <span class="op">=</span> ((npseq <span class="op">==</span> <span class="st">&#39;C&#39;</span>) <span class="op">|</span> (npseq <span class="op">==</span> <span class="st">&#39;G&#39;</span>)).<span class="bu">sum</span>()<span class="op">/</span><span class="bu">float</span>(<span class="bu">len</span>(npseq))
+npresult <span class="op">=</span> ((npseq <span class="op">==</span> <span class="st">&#39;C&#39;</span>) <span class="op">|</span> (npseq <span class="op">==</span> <span class="st">&#39;G&#39;</span>)).cumsum()</code></pre></div>
+<p>cumulative sum rolls like accumulate!</p>
+<p>Now, we’ll divide by the index (starting at one) to simulate the ratio.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">gcs <span class="op">=</span> ((npseq <span class="op">==</span> <span class="st">&#39;C&#39;</span>) <span class="op">|</span> (npseq <span class="op">==</span> <span class="st">&#39;G&#39;</span>))
+npres <span class="op">=</span> gcs.cumsum()<span class="op">/</span>np.arange(<span class="dv">1</span>,<span class="bu">len</span>(npresult)<span class="op">+</span><span class="dv">1</span>, dtype<span class="op">=</span><span class="bu">float</span>)
+np_filter_idx <span class="op">=</span> (npres <span class="op">&gt;=</span> .<span class="dv">5</span>).nonzero()</code></pre></div>
+<p>Putting this together:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> np_gc_hist(seq):
+     npseq <span class="op">=</span> np.array(<span class="bu">list</span>(seq))
+     gcs <span class="op">=</span> ((npseq <span class="op">==</span> <span class="st">&#39;C&#39;</span>) <span class="op">|</span> (npseq <span class="op">==</span> <span class="st">&#39;G&#39;</span>))
+     npres <span class="op">=</span> gcs.cumsum()<span class="op">/</span>np.arange(<span class="dv">1</span>,<span class="bu">len</span>(gcs)<span class="op">+</span><span class="dv">1</span>, dtype<span class="op">=</span><span class="bu">float</span>)
+     <span class="cf">return</span> npres</code></pre></div>
+<p>Let’s plot it:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="im">import</span> matplotlib
+<span class="im">from</span> matplotlib <span class="im">import</span> pyplot <span class="im">as</span> plt
+<span class="op">%</span>pylab inline
+THRESH<span class="op">=</span><span class="fl">0.4</span>
+<span class="kw">def</span> doplot(result):
+    fig <span class="op">=</span> plt.figure()
+    fig.set_size_inches( <span class="fl">20.0</span>, <span class="fl">8.0</span> )
+    gs <span class="op">=</span> matplotlib.gridspec.GridSpec(<span class="dv">1</span>,<span class="dv">2</span>, width_ratios<span class="op">=</span>[<span class="dv">20</span>,<span class="dv">1</span>])
+    ax1 <span class="op">=</span> plt.subplot(gs[<span class="dv">0</span>])
+    ax2 <span class="op">=</span> plt.subplot(gs[<span class="dv">1</span>])
+    ax1.plot(result)
+    <span class="co">&#39;&#39;&#39;draw a line for the threshold.&#39;&#39;&#39;</span>
+    ax1.axhline(y<span class="op">=</span>THRESH, color<span class="op">=</span><span class="st">&#39;green&#39;</span>)
+    fig.show()
+doplot(npresult)</code></pre></div>
+<div class="figure">
+<img src="output_43_1.png" alt="png" />
+<p class="caption">png</p>
+</div>
+<p>Let’s try timing again. First, our old result:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="op">%</span>timeit old <span class="op">=</span> func_gc_hist(seq)
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">1000000</span> loops, best of <span class="dv">3</span>: <span class="dv">663</span> ns per loop</code></pre></div>
+<p>Now with numpy:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="op">%</span>timeit numpy_sttyle <span class="op">=</span> np_gc_hist(seq)
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">10</span> loops, best of <span class="dv">3</span>: <span class="dv">140</span> ms per loop</code></pre></div>
+</div>
+]]></summary>
+</entry>
+<entry>
+    <title>Vim Script 101</title>
+    <link href="/posts/vimLtutorial.html" />
+    <id>/posts/vimLtutorial.html</id>
+    <published>2015-02-02T00:00:00Z</published>
+    <updated>2015-02-02T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<div class="blog-post">
+  <h2 class="blog-post-title">
+    Vim Script 101
+  </h2>
+  <p class="blog-post-meta">
+    Posted on 2015-02-02
+    
+      by Mike Panciera
+    
+  </p>
+  <p>I’m currently working on <a href="https://github.com/averagehat/phonim-jython">a plugin for vim</a>. Along the way I’ve discovered a lot of intersting and useful productivity tricks.</p>
+<h3 id="defining-functions">Defining functions</h3>
+<pre class="vim"><code>fun! Foo()
+&quot; function body
+endfun
+
+function Foo()
+&quot; function body
+endfunction</code></pre>
+<p>Create functions within the command window by putting each statement on a new line. i.e.</p>
+<pre class="vim"><code>:fun! Foo() [&lt;CR&gt;]
+:  second line
+: . . . . . </code></pre>
+<p>Execute them from the commandline window:</p>
+<pre class="vim"><code>:call Foo()</code></pre>
+<p>Variables have several possible scopes: <code>l</code> (local to function), <code>s</code> (local to individual scripts/files), <code>g</code> (global), <code>a</code> (a function parameter).</p>
+<p><code>v</code> is a global like <code>g</code>, but has been predefined by vim. These cannot be defined by the user.</p>
+<p><code>b</code> (local to current buffer), <code>w</code> (local to the current winow) and <code>t</code> (local to current tab) are less often used.</p>
+<p>View defined variables:</p>
+<pre class="vim"><code>:let g:  &quot;or v:, b:, etcl</code></pre>
+<p>By the way, we can use <code>&quot;</code> for comments</p>
+<p>View register contents:</p>
+<pre class="vim"><code>:reg</code></pre>
+<p>Variables are defined using let, e.g.:</p>
+<pre class="vim"><code> let l:bar = &quot;red&quot;</code></pre>
+<p>Variables defined or accessed within a function are by default in the local scope. Prepending with <code>g:</code> allows access to global variables.</p>
+<p>Arrays are much like python lists. They are type-agnostic and can be sliced.</p>
+<pre class="vim"><code>:let l:a = [1, 2, &#39;foo&#39;, &#39;bar&#39;]
+:echo a[2:-1]` &quot;prints [&#39;foo&#39;, &#39;bar&#39;]</code></pre>
+<p>Strings can also be sliced withe same syntax.</p>
+<p>String concatenation is php style:</p>
+<pre class="vim"><code>let g:pair = &#39;eight&#39; . &#39;eight&#39;</code></pre>
+<p>Directly access the command line:</p>
+<pre class="vim"><code>:!echo -e &quot;bash\nis\nfun&quot; | cat &gt; bar.txt </code></pre>
+<p>Read files into the buffer:</p>
+<pre class="vim"><code>:r bar.txt</code></pre>
+<p>Produces:</p>
+<pre><code>bash
+is
+fun</code></pre>
+<p>Under your cursor.</p>
+<p>Read command outputs into the buffer:</p>
+<pre class="vim"><code>:r !curl -s icanhazip.com</code></pre>
+<p>If your distribution of vim is compiled with python included (and it usually is) you can also access a python interpreter during your editing session.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">:py <span class="bu">print</span> <span class="st">&quot;ni!&quot;</span></code></pre></div>
+<p>You can access vim from the internal python interpreter.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">:py <span class="im">import</span> vim
+:py vim.current.<span class="bu">buffer</span>[<span class="dv">0</span>] <span class="op">=</span> <span class="st">&#39;Just answer the five (three!) questions&#39;</span></code></pre></div>
+<p>You can go crazy with it if you like . . .</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">:py <span class="im">import</span> requests, lxml.etree
+:root <span class="op">=</span> lxml.etree.HTML(requests.get(<span class="st">&#39;https://twitter.com/montypython&#39;</span>).text)
+:redir @i<span class="op">|</span> exe <span class="st">&#39;:silent py for t in  root.xpath(&quot;//p[contains(@class, </span><span class="ch">\&quot;</span><span class="st">ProfileTweet-text</span><span class="ch">\&quot;</span><span class="st">)]/text()&quot;): print t.encode(&quot;utf8&quot;)&#39;</span> <span class="op">|</span> redir END <span class="op">|</span> $put i</code></pre></div>
+<p>Here, <code>:redir</code> redirects output of the commands between <code>:redir</code> and <code>:redir END</code> (which would usually be printed in the command window) to some register. Vim has 26+ register (all alphabetical letters and additional reserved registers). <code>@i</code> accesses the value at register <code>i</code>, telling vim to pipe output there. <code>|</code> stands in place of <code>&lt;CR&gt;</code> to separate commands. <code>exe</code> executes the given command as if it were in the command. We can use it when we need to make a command out of concatenating strings. In this case, it lets us wrap the python code in ’’ so that python does not try to interpret the next <code>|</code>. <code>silent</code> tells vim not to echo the result of the command in the command window. <code>redir END</code> will populate our register <code>i</code> – it won’t get updated until the redirect is finished. Finally, we execute <code>put i</code>, which inserts the contents of register <code>i</code> after the cursor’s current line. The <code>$</code> (which generally indecates “last”) tells put to instead append to the last line of the buffer.</p>
+<p>There are some useful global variables</p>
+<pre class="vim"><code>v:statusmsg    &quot;usually holds the last item shown in the command window      
+v:warningmsg   e.g. W10: Warning: Changing a readonly file
+v:errmsg       e.g. E488: Trailing characters: put v:errmsg</code></pre>
+<p>Useful Motions (normal mode)</p>
+<pre class="vim"><code>command    goes to
+`f&lt;char&gt;` next instance of &lt;char&gt;
+`)`       end of setnece
+`%`       matching parens/brace
+`$`       end of line
+`G`       end of file
+`}`       next paragraph</code></pre>
+<p>Additionally, we have <code>visual</code> mode. A quick preview of that:</p>
+<pre class="vim"><code>&lt;C-v&gt;  &quot;To select columns. Any change propagates to all columns.
+:vs [filename] &quot;split vertical window
+:split [filename] &quot;split horizontally</code></pre>
+<p><code>&lt;C-w&gt;</code> Is the window command suffix, so <code>&lt;C-w&gt; h</code> moves to the left widnow, <code>&lt;C-w&gt; l</code> to the right, <code>&lt;C-w&gt; k</code> moves to the upper window and <code>&lt;C-w&gt; j</code> moves to the lower one. I have the following mapping which forces this to work straight out of insert mode:</p>
+<pre class="vim"><code>:inoremap &lt;C-w&gt; &lt;Esc&gt; &lt;C-w&gt;</code></pre>
+<p><code>&lt;Esc&gt;</code> exits to nromal mode. So does <code>&lt;C-[&gt;</code>; we can map the tab key to do it as well:</p>
+<pre class="vim"><code>:imap &lt;tab&gt; &lt;Esc&gt;</code></pre>
+<p>So what can we do with all this? Well, we have lots of useful variables, lots of registers, and marks, and even [ communication protocol for controlling external processes] (http://vimdoc.sourceforge.net/htmldoc/netbeans.html). My next post will be about the project that most of this study has been devoted to. For now, I’ll go over a few of my personal settings and one trick that is a bit obscure but extremely powerful.</p>
+<pre class="vim"><code>:noremap &lt;C-d&gt; :call search(&#39;def\s\s*(&#39; . expand(&#39;&lt;cword&gt;&#39;)) &lt;CR&gt;</code></pre>
+<p>The <code>search</code> function takes a string (remember that <code>.</code> performs string concatenation), searches the buffer for the regular expression, and moves the cursor to the the line of the found string. <code>search</code> returns the line of the found match, or <code>0</code> if no match was found (vim counts its buffer line from <code>1</code>). <code>&lt;cword&gt;</code> is an “Ex special character” (try <code>:h cmdline-special</code>). The <code>expand</code> function returns the special meaning of <code>&lt;cword&gt;</code>, which happens to be the current word under the cursor. So if the word under my cursor is “print_lines”, search will be called on <code>def\s+print_line(</code>. So this obscure little function will take you to the function definiton of whatever function you’re currently hovering over. IF it’s in the file. But what if it’s not? Let’s try a function.</p>
+<pre class="vim"><code>fun! DefSearch()
+  let l:regex = &#39;def\s\s*(&#39; . expand(&#39;&lt;cword&gt;&#39;)
+  if search(regex) == 0   &quot; search failed
+ silent &#39;grep -E &quot;&#39;  . regex . &#39;&quot; *.py&#39;
+  endif
+endfun</code></pre>
+<p>VimL’s functions execute their code as if from the command-line (in vim, as if you prepended them with <code>:</code>). So <code>silent</code> <code>executes</code> the following command without echoing in the command window. It then execute’s vim’s built-in grep (which is a wrapper around bash’s grep). grep’s <code>E</code> allows you to use quote-wrapped regular expressions; -r forces a recursive search, if you like it. <code>*.py</code> will match any python files. Let’s map it! Food()</p>
+<pre class="vim"><code>:noremap &lt;C-d&gt; :call DefSearch() &lt;CR&gt;</code></pre>
+<p>But it’s only useful if we’re editing or reading a python file . . . we probably don’t want to use it otherwise. So in the <code>.vimrc</code> file, we add:</p>
+<pre class="vim"><code>au BufREadPost *.py :noremap &lt;C-d&gt; :call DefSearch() &lt;CR&gt;</code></pre>
+<p>Testing all this can be a bit of a drag, but as we are editing a vim script (or our .vimrc file) we can immmediately run it (and gain access to its globally-declared variables and functions) by calling <code>:source</code>. We can take advantage of anther “cmd-line-special” <code>%</code>, which in the command-line has the value of the current buffer name.</p>
+<pre class="vim"><code>:source %</code></pre>
+<p>Okay, one last trick. This one is real nifty. Info on it is in vim’s extensive in-house documentation–just try <code>:h g@</code>. This trick allows you to capture user motions and reference them within a function. We do this by setting an ‘operatorfunc’ option. The result is a custom operator. Given a function Foo:</p>
+<pre class="vim"><code>:nmap &lt;silent&gt; &lt;F4&gt; :set opfunc=Echo&lt;CR&gt;g@
+:vmap &lt;silent&gt; &lt;F4&gt; :&lt;C-U&gt;call Echo(visualmode(), 1)&lt;CR&gt;</code></pre>
+<p>Note: <code>:vmap</code> is the equivalent of <code>:nmap</code> for visual mode. The function defition:</p>
+<pre class="vim"><code>&quot; uses [/] marks along with visual mode to yank a custom selection of text.
+fun! Echo(type, ...)
+  &quot;backticks=&#39; (goto mark), have to avoid out-quoting string
+  &quot;clear the @q register for use in this function.
+  &quot;@q is the reserved phonim register.
+  let @q=&quot;&quot;
+  &quot; see :h g@ for more info and how to save and restore a register, which
+  &quot; would allow us to use &#39;q&#39; only temporarily and then restore it 
+  if a:0  &quot; Invoked from Visual mode, use &#39;&lt; and &#39;&gt; marks.
+ silent exe &quot;normal! `&lt;&quot; . a:type . &#39;`&gt;&quot;qy&#39;
+  elseif a:type == &#39;line&#39;
+ silent exe &#39;normal! `[V`]&quot;qy&#39;
+  elseif a:type == &#39;block&#39; &quot; column (&#39;block&#39;) selection. 
+ silent exe &#39;normal! `[\&lt;C-V&gt;`]&quot;qy&#39;
+  &quot;v -&gt; visual mode but stay in-line
+  else &quot; Stay in-line
+ silent exe &#39;normal! `[v`]&quot;qy&#39;  
+  endif
+  echo @q
+endfun</code></pre>
+<p>This function echos into the command-window any text that the user selects. It saves the user’s selection in the <code>q</code> register (could be any letter). It is possible to store and restore this register so as not to lose its original contents. Now <code>:normal</code> executes normal-mode commands, and will use any mappings that we defined by <code>nmap</code>. <code>:normal!</code> overrides this use of mapping. The <code>opfunc</code> works by setting <code>[</code> and <code>]</code> marks to the beginning and end of the user motiton (i.e. to the next whitespace if it is <code>W</code> or the next like if it is <code>j</code>). The <code>Echo</code> function simply yanks the text between these two marks and stores them in the <code>q</code> register. We can then do whatever we like with the text, in this case echo it. The if statements gaurantee that the selection will work the same in visual and normal mode (<code>v</code> is for inline visual selection; <code>V</code> is for column or “block” selection).</p>
+<p>In my next post I’ll talk about an interesting application of this last technique–and VimL in general, and the reasoning behind all this research.</p>
+</div>
+]]></summary>
+</entry>
+
+</feed>

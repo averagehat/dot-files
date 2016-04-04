@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Pattern | Matched - Functional Programming for Bioinformatics (with list functions)</title>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="../css/bootstrap-blog.css"> 
+     <link rel="stylesheet" type="text/css" href="../css/syntax.css" /> 
+     <link rel="stylesheet" type="text/css" href="../lib/styles/*.css" /> 
+     <script src="lib/highlight.pack.js"></script>
+  </head>
+
+  <body>
+
+    <div class="blog-masthead">
+      <div class="container">
+	<nav class="blog-nav">
+          <a class="blog-nav-item" href="../">Home</a>
+          <a class="blog-nav-item" href="../about.html">About</a>
+          <a class="blog-nav-item" href="../contact.html">Contact</a>
+          <a class="blog-nav-item" href="../archive.html">Archive</a>
+	</nav>
+      </div>
+    </div>
+
+    <div class="container">
+
+      <div class="blog-header">
+	<h1 class="blog-title">Pattern | Matched</h1>
+	<p class="lead blog-description">
+        <!--The blog of Dr. Hakyll-->
+	</p>
+      </div>
+
+      <div class="row">
+	<div class="col-sm-8 blog-main">
+	  <div class="blog-post">
+  <h2 class="blog-post-title">
+    Functional Programming for Bioinformatics (with list functions)
+  </h2>
+  <p class="blog-post-meta">
+    Posted on 2015-08-08
+    
+      by Michael Panciera
+    
+  </p>
+  <p>Functional programming principles can be productively applied even in small cases. The predictability and compositional capacity of small functions allows for modular, extensible code. First-order functions can be used in a variety of generic higher-order functions or “combinators”. In the future, we will look at how static typing combined with immutability can make this code much safer as an additional benefit.</p>
+<p>Let’s use calculating <a href="https://en.wikipedia.org/wiki/GC-content">GC-content</a> as an example.</p>
+<p>Where <code>seq</code> is some DNA sequence–just a string of characters composed soley of items in the set <code>{'A', 'C', 'G', 'T'}</code></p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> gc(seq):
+    <span class="co">'''(G+C)/(A+T+G+C) * 100'''</span>
+    <span class="cf">return</span> (seq.count(<span class="st">'G'</span>) <span class="op">+</span> seq.count(<span class="st">'C'</span>)) <span class="op">/</span> <span class="bu">float</span>( <span class="bu">len</span>(seq) )
+<span class="bu">print</span>(gc(<span class="st">&quot;ACGTCCA&quot;</span>))
+
+
+<span class="op">&gt;&gt;&gt;</span> <span class="fl">0.571428571429</span></code></pre></div>
+<p>But reall, we want to model GC-content as a fraction, so at any given time we know the size of the sequence. Python has a fraction class, but it doesn’t allow us to represent the state <code>0/0</code>, which would be our startin state.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="im">from</span> fractions <span class="im">import</span> Fraction
+<span class="kw">class</span> Ratio(Fraction):
+    <span class="co">''' new is for immutable classes.'''</span>
+    <span class="kw">def</span> <span class="fu">__new__</span>(cls, num, denom):
+        <span class="co">'''cls is like self really '''</span>
+        <span class="cf">if</span> denom <span class="op">==</span><span class="dv">0</span> <span class="op">and</span> num <span class="op">==</span> <span class="dv">0</span>:
+            <span class="va">self</span> <span class="op">=</span> <span class="bu">super</span>(Fraction, cls).<span class="fu">__new__</span>(cls)
+        <span class="cf">else</span>:
+            <span class="va">self</span> <span class="op">=</span> <span class="bu">super</span>(Fraction, cls).<span class="fu">__new__</span>(cls)
+        <span class="va">self</span>.<span class="fu">__str__</span> <span class="op">=</span> Ratio.<span class="fu">__str__</span>
+        <span class="va">self</span>._numerator, <span class="va">self</span>._denominator <span class="op">=</span> num, denom
+        <span class="cf">return</span> <span class="va">self</span>
+    <span class="kw">def</span> <span class="fu">__float__</span>(<span class="va">self</span>):
+        <span class="cf">if</span> <span class="va">self</span>._denominator <span class="op">==</span> <span class="dv">0</span>:
+            <span class="cf">return</span> <span class="fl">0.0</span>
+        <span class="cf">else</span>:
+            <span class="cf">return</span> <span class="bu">super</span>(Fraction, <span class="va">self</span>).<span class="fu">__float__</span>()
+        
+    <span class="kw">def</span> <span class="fu">__str__</span>(<span class="va">self</span>):
+        <span class="cf">return</span> <span class="st">&quot;</span><span class="sc">{0}</span><span class="st">/</span><span class="sc">{1}</span><span class="st">&quot;</span>.<span class="bu">format</span>(<span class="va">self</span>._numerator, <span class="va">self</span>._denominator)</code></pre></div>
+<p>Now we can update our function:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> gc(seq):
+    <span class="co">'''(G+C)/(A+T+G+C) * 100'''</span>
+    <span class="cf">return</span> Ratio(seq.count(<span class="st">'G'</span>) <span class="op">+</span> seq.count(<span class="st">'C'</span>),  <span class="bu">len</span>(seq))
+<span class="bu">print</span>(gc(<span class="st">&quot;ACGTCCA&quot;</span>))
+
+<span class="op">&gt;&gt;&gt;</span>  <span class="dv">4</span><span class="op">/</span><span class="dv">7</span></code></pre></div>
+<p>’This is all well and good, but what if we want to know the GC-content at a certain place in the read?</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">seq <span class="op">=</span> <span class="st">'AGCTTAGGCCTTTAAAACCGGGGCCCCCGGAAGCGACTT'</span>
+<span class="bu">print</span> gc(seq[:<span class="dv">10</span>]) 
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">6</span><span class="op">/</span><span class="dv">10</span></code></pre></div>
+<p>That works, but will get tiresome and inefficient…</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">gc(seq[<span class="dv">0</span>]), gc(seq[:<span class="dv">10</span>]), gc(seq[<span class="op">-</span><span class="dv">1</span>]) 
+
+<span class="op">&gt;&gt;&gt;</span>    (Fraction(<span class="dv">0</span>, <span class="dv">1</span>), Fraction(<span class="dv">6</span>, <span class="dv">10</span>), Fraction(<span class="dv">0</span>, <span class="dv">1</span>))</code></pre></div>
+<p>What if we want to create a histogram of the gc-content at each position in the read?</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">N <span class="op">=</span> <span class="bu">len</span>(seq)
+<span class="kw">def</span> gc_hist_(seq):
+    <span class="cf">return</span> [gc_counter(seq[:i]) <span class="cf">for</span> i  <span class="op">in</span> <span class="bu">xrange</span>(<span class="dv">1</span>, N)]</code></pre></div>
+<p>we have to re-calculate the GC-ratio each time! In terms of runtime, this is equivalent to:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="bu">sum</span>(i <span class="cf">for</span> i <span class="op">in</span> <span class="bu">xrange</span>(N) ) 
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">741</span></code></pre></div>
+<p>Well, this method is O(N^2) (about (N^2)/2, where N=length of sequence). So the runtime is quadratic. We can fix this by writing a new function specifially for constructing a list of GC-content.</p>
+<p>Instead, let’s try solving this problem with higher-order functions, and see where that gets us.</p>
+<p>Functional programming works well when we compose small functions together. Let’s create the smallest unit we can out of this problem:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> content(ratio, nt):
+    val <span class="op">=</span> <span class="dv">1</span> <span class="cf">if</span> nt <span class="op">in</span> <span class="st">'GC'</span> <span class="cf">else</span> <span class="dv">0</span>
+    <span class="cf">return</span> Ratio(ratio.numerator <span class="op">+</span> val, ratio.denominator<span class="dv">+1</span>)</code></pre></div>
+<p>Next, let’s solve our problem of creating a rolling GC-content for a histogram using a higher-order function and <code>content</code>. A higher-order function is just a function which accepts another function as one of its arguments. This feature isn’t available in all programming languages, but it’s available in python. The higher-order function we’ll use is <code>accumulate</code>.</p>
+<p>In haskell, accumulate is known as <code>scanl</code>, and it’s corrolary is <code>foldl</code>. <code>accumulate</code> is similar to <code>reduce</code> in python, except it keeps track of every result, rather than throwing them away and only keeping the final result.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> accumulate(iterable, func, start<span class="op">=</span><span class="va">None</span>):
+    <span class="co">'''re-implementation of accumulate that allows you to specify a start value</span>
+<span class="co">    like with reduce.'''</span>
+    it <span class="op">=</span> <span class="bu">iter</span>(iterable)
+    <span class="cf">if</span> start <span class="op">is</span> <span class="va">None</span>:
+        total <span class="op">=</span> <span class="bu">next</span>(it)
+        <span class="cf">yield</span> total
+    <span class="cf">else</span>:
+        total <span class="op">=</span> start
+    <span class="co">#could also skip yielding total</span>
+    <span class="cf">for</span> element <span class="op">in</span> it:
+        total <span class="op">=</span> func(total, element)
+        <span class="cf">yield</span> total</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="im">import</span> operator
+<span class="bu">print</span> <span class="bu">list</span>(accumulate([<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>], operator.mul)) <span class="co"># --&gt; 1 2 6 24 120</span>
+<span class="op">&gt;&gt;&gt;</span>    [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">6</span>, <span class="dv">24</span>, <span class="dv">120</span>]
+
+<span class="bu">print</span> <span class="bu">list</span>(accumulate(<span class="st">&quot;ACGCCGT&quot;</span>, content, Ratio(<span class="dv">0</span>, <span class="dv">0</span>)))
+<span class="im">from</span> functools <span class="im">import</span> partial
+func_gc_hist <span class="op">=</span> partial(accumulate, func<span class="op">=</span>content, start<span class="op">=</span>Ratio(<span class="dv">0</span>,<span class="dv">0</span>))
+
+<span class="op">&gt;&gt;&gt;</span>    [Fraction(<span class="dv">0</span>, <span class="dv">1</span>), Fraction(<span class="dv">1</span>, <span class="dv">2</span>), Fraction(<span class="dv">2</span>, <span class="dv">3</span>), Fraction(<span class="dv">3</span>, <span class="dv">4</span>), Fraction(<span class="dv">4</span>, <span class="dv">5</span>), Fraction(<span class="dv">5</span>, <span class="dv">6</span>), Fraction(<span class="dv">5</span>, <span class="dv">7</span>)]</code></pre></div>
+<p>Now we have our histogram! Let’s look more closely at how this works using <code>reduce</code> as an example. Using our function <code>content</code> with <code>reduce</code> will give us the total GC-ratio for a given sequence. <code>reduce</code> emulates recursion by computing a new value for each element in the list and passing it onto the next call with the element as a paramter. Let’s look at a simple example of summing a list:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> _add2(acc, elem):
+    <span class="cf">return</span> elem <span class="op">+</span> acc
+
+<span class="bu">print</span> <span class="bu">reduce</span>(_add2, [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>]) 
+
+<span class="op">&gt;&gt;&gt;</span>    <span class="dv">15</span></code></pre></div>
+<p>Let’s break this down, step by step. Here, each line represents an iteration of reduce. . . .</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># under the hood, this might look like:</span>
+[<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>], <span class="dv">0</span>
+<span class="op">-&gt;</span> [<span class="dv">1</span>, <span class="dv">2</span>], <span class="dv">3</span>
+<span class="op">-&gt;</span> [<span class="dv">1</span>],   <span class="dv">5</span>
+<span class="op">&gt;&gt;&gt;</span><span class="dv">6</span></code></pre></div>
+<p>In a sense <code>reduce</code> is “substituting” parts of the list for there sum, similar to how one might simplify an algabreic equation. We can see this pattern in accumulate’s output:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="bu">print</span> <span class="bu">list</span>(accumulate([<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="dv">5</span>], _add2)) 
+
+<span class="op">&gt;&gt;&gt;</span>  [<span class="dv">1</span>, <span class="dv">3</span>, <span class="dv">6</span>, <span class="dv">10</span>, <span class="dv">15</span>]</code></pre></div>
+<p>Another simple example, reversing a list. list reversal has a straightforward recursive solution:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> _reverse(l):
+    <span class="cf">if</span> <span class="bu">len</span>(l) <span class="op">==</span> <span class="dv">0</span>: <span class="cf">return</span> []
+    <span class="cf">return</span> [l[<span class="op">-</span><span class="dv">1</span>]] <span class="op">+</span> _reverse(l[:<span class="op">-</span><span class="dv">1</span>])
+
+<span class="bu">print</span>(_reverse([<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>])) 
+
+<span class="op">&gt;&gt;&gt;</span>    [<span class="dv">4</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">1</span>]</code></pre></div>
+<p>But it can be written much more simply using <code>reduce</code>, which handles the details of the recursive call.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> _reverse(acc, elem):
+    <span class="cf">return</span> [elem] <span class="op">+</span> acc
+<span class="bu">reduce</span>(_reverse, [<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>], []) 
+
+<span class="op">&gt;&gt;&gt;</span>    [<span class="dv">4</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">1</span>]</code></pre></div>
+<p>Again, let’s break it down:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">[<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>], []
+<span class="op">-&gt;</span> [<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>], [<span class="dv">4</span>]
+<span class="op">-&gt;</span> [<span class="dv">1</span>, <span class="dv">2</span>],    [<span class="dv">4</span>, <span class="dv">3</span>]
+<span class="op">-&gt;</span> [<span class="dv">1</span>],       [<span class="dv">4</span>, <span class="dv">3</span>, <span class="dv">2</span>]
+<span class="op">&gt;&gt;&gt;</span>[<span class="dv">4</span>, <span class="dv">3</span>, <span class="dv">2</span>, <span class="dv">1</span>]</code></pre></div>
+<p>notice that at any point during the traversal, the accumulated value is correct for the traversed part of the list. Using this model of folding an accumulating paramter over a sequence, we can model GC-content as a “rolling ratio” over a given sequence of nucleotides. At any point during the traversal, The ratio will be correct, and the result of “reducing” the sequence with this model will give us our total GC-content. The following method is not the most efficient nor the simplest (it requires building a “Ratio” subclass), but it closely (and flexibly) models the mathematical formula that defines GC-content in the first place. ‘’’</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">seq <span class="op">=</span> <span class="st">'AGCTTAGGCCTTTAAAACCGGGGCCCCCGGAAGCGACTT'</span>
+<span class="bu">print</span> <span class="bu">reduce</span>(content, seq, Ratio(<span class="dv">0</span>,<span class="dv">0</span>))
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">23</span><span class="op">/</span><span class="dv">39</span></code></pre></div>
+<p>That’s all reasonable, and it’s nice to see GC-content representated as a ratio. But is it practical? Well, it will work, but there is a much more efficient way. Array-wise computations like this–which will become quite large if we get big reads (or god forbid) a whole contig/genome. Additionally, we may want to scale to viewing multiple reads at once, ie, as a matrix.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="im">from</span> random <span class="im">import</span> choice
+N <span class="op">=</span> <span class="dv">1000000</span>
+alpha <span class="op">=</span> <span class="bu">list</span>(<span class="st">'AGCT'</span>)
+seq <span class="op">=</span> <span class="st">''</span>.join( choice(alpha) <span class="cf">for</span> _ <span class="op">in</span> <span class="bu">xrange</span>(N) )
+<span class="im">from</span> fn.iters <span class="im">import</span> repeatfunc
+seq <span class="op">=</span> <span class="st">''</span>.join(repeatfunc(partial(choice, alpha), N))
+<span class="op">%</span>timeit functional <span class="op">=</span> func_gc_hist(seq)
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">1000000</span> loops, best of <span class="dv">3</span>: <span class="dv">663</span> ns per loop</code></pre></div>
+<p>Quite slow. Let’s see how the efficient <code>numpy</code> library can achieve much faster runtimes, and how we can use these same functional principals–recursion, reduction, and accumulation–to get more leverage (and cleaner code) out of numpy.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="im">import</span> numpy <span class="im">as</span> np
+np.array([<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>]).<span class="bu">sum</span>()
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">15</span></code></pre></div>
+<p><code>np.sum</code> is actually a specific (read: partial application) of np.reduce! <a href="https://github.com/numpy/numpy/blob/a9c810dd1d8fc1e3c6d0f0ca6310f41795545ec9/numpy/core/_methods.py">source</a></p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">npseq <span class="op">=</span> np.array(<span class="bu">list</span>(seq))
+gccon <span class="op">=</span> ((npseq <span class="op">==</span> <span class="st">'C'</span>) <span class="op">|</span> (npseq <span class="op">==</span> <span class="st">'G'</span>)).<span class="bu">sum</span>()<span class="op">/</span><span class="bu">float</span>(<span class="bu">len</span>(npseq))
+npresult <span class="op">=</span> ((npseq <span class="op">==</span> <span class="st">'C'</span>) <span class="op">|</span> (npseq <span class="op">==</span> <span class="st">'G'</span>)).cumsum()</code></pre></div>
+<p>cumulative sum rolls like accumulate!</p>
+<p>Now, we’ll divide by the index (starting at one) to simulate the ratio.</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python">gcs <span class="op">=</span> ((npseq <span class="op">==</span> <span class="st">'C'</span>) <span class="op">|</span> (npseq <span class="op">==</span> <span class="st">'G'</span>))
+npres <span class="op">=</span> gcs.cumsum()<span class="op">/</span>np.arange(<span class="dv">1</span>,<span class="bu">len</span>(npresult)<span class="op">+</span><span class="dv">1</span>, dtype<span class="op">=</span><span class="bu">float</span>)
+np_filter_idx <span class="op">=</span> (npres <span class="op">&gt;=</span> .<span class="dv">5</span>).nonzero()</code></pre></div>
+<p>Putting this together:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="kw">def</span> np_gc_hist(seq):
+     npseq <span class="op">=</span> np.array(<span class="bu">list</span>(seq))
+     gcs <span class="op">=</span> ((npseq <span class="op">==</span> <span class="st">'C'</span>) <span class="op">|</span> (npseq <span class="op">==</span> <span class="st">'G'</span>))
+     npres <span class="op">=</span> gcs.cumsum()<span class="op">/</span>np.arange(<span class="dv">1</span>,<span class="bu">len</span>(gcs)<span class="op">+</span><span class="dv">1</span>, dtype<span class="op">=</span><span class="bu">float</span>)
+     <span class="cf">return</span> npres</code></pre></div>
+<p>Let’s plot it:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="im">import</span> matplotlib
+<span class="im">from</span> matplotlib <span class="im">import</span> pyplot <span class="im">as</span> plt
+<span class="op">%</span>pylab inline
+THRESH<span class="op">=</span><span class="fl">0.4</span>
+<span class="kw">def</span> doplot(result):
+    fig <span class="op">=</span> plt.figure()
+    fig.set_size_inches( <span class="fl">20.0</span>, <span class="fl">8.0</span> )
+    gs <span class="op">=</span> matplotlib.gridspec.GridSpec(<span class="dv">1</span>,<span class="dv">2</span>, width_ratios<span class="op">=</span>[<span class="dv">20</span>,<span class="dv">1</span>])
+    ax1 <span class="op">=</span> plt.subplot(gs[<span class="dv">0</span>])
+    ax2 <span class="op">=</span> plt.subplot(gs[<span class="dv">1</span>])
+    ax1.plot(result)
+    <span class="co">'''draw a line for the threshold.'''</span>
+    ax1.axhline(y<span class="op">=</span>THRESH, color<span class="op">=</span><span class="st">'green'</span>)
+    fig.show()
+doplot(npresult)</code></pre></div>
+<div class="figure">
+<img src="output_43_1.png" alt="png" />
+<p class="caption">png</p>
+</div>
+<p>Let’s try timing again. First, our old result:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="op">%</span>timeit old <span class="op">=</span> func_gc_hist(seq)
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">1000000</span> loops, best of <span class="dv">3</span>: <span class="dv">663</span> ns per loop</code></pre></div>
+<p>Now with numpy:</p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="op">%</span>timeit numpy_sttyle <span class="op">=</span> np_gc_hist(seq)
+
+<span class="op">&gt;&gt;&gt;</span> <span class="dv">10</span> loops, best of <span class="dv">3</span>: <span class="dv">140</span> ms per loop</code></pre></div>
+</div>
+
+	</div>
+
+	<div class="col-sm-3 col-sm-offset-1 blog-sidebar">
+	  <div class="sidebar-module sidebar-module-inset">
+	    <h4>About</h4>
+	    <p>(typesafe) functional programming </p>
+	  </div>
+	  <div class="sidebar-module">
+	    <h4>Archives</h4>
+	    <ol class="list-unstyled">
+	      <li><a href="#">June 2015</a></li>
+	    </ol>
+	  </div>
+	  <div class="sidebar-module">
+	    <h4>Elsewhere</h4>
+	    <ol class="list-unstyled">
+	      <li>
+		<a href="#">GitHub</a>
+	      </li>
+	      <li>
+		<a href="#">Twitter</a>
+	      </li>
+	      <li>
+		<a href="#">Facebook</a>
+	      </li>
+	    </ol>
+	  </div>
+	  <div class="sidebar-module">
+	    <a href="../atom.xml">Atom</a> - <a href="../rss.xml">RSS</a>
+	  </div>
+	</div>
+
+      </div>
+
+    </div>
+
+    <footer class="blog-footer">
+      <p>
+	Site proudly generated by
+	<a href="http://jaspervdj.be/hakyll">Hakyll</a>
+      </p>
+    </footer>
+
+  </body>
+
+</html>
