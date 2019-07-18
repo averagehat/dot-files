@@ -408,3 +408,7 @@ endfun
 " soon to come . . . 
 "au CursorMoved * echo "foo" 
 au BufRead,BufNewFile *.fasta,*.fa set filetype=fasta
+
+
+let g:syntastic_python_checkers = ['mypy', 'flake8', 'prospector']
+

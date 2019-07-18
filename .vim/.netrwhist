@@ -1,10 +1,7 @@
 let g:netrw_dirhistmax  =10
-let g:netrw_dirhist_cnt =8
-let g:netrw_dirhist_1='/Users/wovenhead/ML/classSpring2015/mlclass-ex1-008/mlclass-ex1'
-let g:netrw_dirhist_2='/Users/wovenhead/ML/classSpring2015/mlclass-ex1-008'
-let g:netrw_dirhist_3='/Users/wovenhead/ML/classSpring2015/mlclass-ex1-008/mlclass-ex1'
-let g:netrw_dirhist_4='/Users/wovenhead/clones/uncurl/tests'
-let g:netrw_dirhist_5='/Users/wovenhead/clones/uncurl/uncurl'
-let g:netrw_dirhist_6='/Users/wovenhead/clones/uncurl'
-let g:netrw_dirhist_7='/Users/wovenhead/clones'
-let g:netrw_dirhist_8='/Users/wovenhead/clones/example'
+let g:netrw_dirhist_cnt =5
+let g:netrw_dirhist_1='/Users/michaelpanciera/solr_seq_search/gov/nih/nlm/ncbi/seqr/tokenizer'
+let g:netrw_dirhist_2='/Users/michaelpanciera/solr_seq_search/gov/nih/nlm/ncbi/seqr'
+let g:netrw_dirhist_3='/Users/michaelpanciera/solr_seq_search/gov/nih/nlm/ncbi/seqr/tokenizer'
+let g:netrw_dirhist_4='/Users/michaelpanciera/solr_seq_search/gov/nih/nlm/ncbi/seqr'
+let g:netrw_dirhist_5='/Users/michaelpanciera/solr_seq_search/gov/nih/nlm/ncbi/seqr/tokenizer'
