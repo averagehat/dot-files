@@ -21,7 +21,7 @@
 " pip install mypy pylint pyflakes 
 "
 "
-set paste
+"set paste
 syntax enable
 call plug#begin('~/.nvim/plugged')
 
@@ -33,9 +33,28 @@ Plug 'vim-python/python-syntax'
 Plug 'nvie/vim-flake8' 
 Plug 'integralist/vim-mypy' 
 Plug 'KabbAmine/zeavim.vim'
-Plug 'benekastah/neomake'
-
+Plug 'benekastah/neomake' 
+Plug 'zchee/deoplete-jedi' 
+Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
+Plug 'roxma/nvim-yarp'
+Plug 'roxma/vim-hug-neovim-rpc'
 call plug#end()
+
+"use TAB as the mapping
+"inoremap <silent><expr> <TAB>
+"      \ pumvisible() ?  "\<C-n>" :
+"      \ <SID>check_back_space() ? "\<TAB>" :
+"      \ deoplete#mappings#manual_complete()
+"
+"
+"function! s:check_back_space() abort ""     
+"  let col = col(.) - 1
+"  return !col || getline(.)[col - 1]  =~ s
+"endfunction ""   
+"inoremap <silent><expr><S-TAB>  pumvisible() ? "\<C-p>" : "\<TAB>"
+"inoremap <expr><BS>  deoplete#smart_close_popup()."\<C-h>"
+
+
 
 "let g:neomake_python_pylint_args = neomake#makers#ft#python#pylint().args += ['--extension-pkg-whitelist=numpy']
 let g:neomake_highlight_lines = 1
@@ -96,7 +115,7 @@ set clipboard=unnamed
 " Attempt to determine the type of a file based on its name and possibly its
 " contents. Use this to allow intelligent auto-indenting for each filetype,
 " and for plugins that are filetype specific.
-filetype indent plugin on
+"filetype indent plugin on
 
 " Enable syntax highlighting
 syntax on
@@ -380,7 +399,7 @@ noremap <C-g> :exe ':grep ' . expand('<cword>') . ' *'  <CR>
 inoremap <c-s> <Esc>:update<CR>
 noremap <C-s> :update<CR>
 
-imap <tab> <Esc>
+" imap <tab> <Esc>
 " Let window searching work from insert mode
 inoremap <C-w> <Esc> <C-w>  
 
@@ -389,3 +408,25 @@ nnoremap <Leader>s :%s/\<<C-r><C-w>\>/
 
 
 "au BufRead,BufNewFile *.fasta,*.fa set filetype=fasta
+
+"inoremap <expr><C-Space> deoplete#mappings#manual_complete()
+"inoremap <C-b> <Esc>:call deoplete#mappings#manual_complete() <CR>
+"noremap <C-b> :call deoplete#mappings#manual_complete() <CR>
+
+
+let g:deoplete#enable_at_startup = 1
+let g:deoplete#sources = {}
+let g:deoplete#sources.python = ['jedi']
+let g:deoplete#sources#jedi#enable_cache = 0
+"let g:deoplete#options_auto_complete = 1
+"set completeopt=menu
+
+inoremap <C-space> <ESC>
+inoremap <silent><expr> <TAB>
+	\ pumvisible() ? "\<C-n>" :
+	\ <SID>check_back_space() ? "\<TAB>" :
+	\ deoplete#auto_complete()
+function! s:check_back_space() abort "{{{
+    let col = col('.') - 1
+   return !col || getline('.')[col - 1]  =~ '\s'
+ endfunction"}}}
