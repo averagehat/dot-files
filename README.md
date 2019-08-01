@@ -7,7 +7,7 @@ Install
 curl -kLO https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage
 chmod u+x nvim.appimage
 ./nvim.appimage
-cp ./nvim.appimage $HOME/bin/  # or somewhere in PATH
+cp ./nvim.appimage $HOME/bin/nvim  # or somewhere in PATH
 
 # make sure you're using a virtual environment or miniconda
 
