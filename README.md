@@ -6,8 +6,9 @@ Install
 # install neovim
 curl -kLO https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage
 chmod u+x nvim.appimage
-./nvim.appimage
-cp ./nvim.appimage $HOME/bin/nvim  # or somewhere in PATH
+mkdir -p $HOME/bin
+cp ./nvim.appimage $HOME/bin/nvim 
+# make sure $HOME/bin is in PATH
 
 # make sure you're using a virtual environment or miniconda
 
